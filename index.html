@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบโหวตลงคะแนนนักศึกษา</title>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+    <style>
+        * { box-sizing: border-box; font-family: 'Kanit', sans-serif; }
+        body { background-color: #0f172a; color: #ffffff; margin: 0; padding: 15px; }
+        .container { max-width: 1400px; margin: 0 auto; width: 100%; }
+        
+        .nav-bar { 
+            display: flex; justify-content: space-between; align-items: center; 
+            background: #1e293b; padding: 12px 20px; border-radius: 16px; margin-bottom: 15px; 
+            border: 2px solid #ffffff; 
+            box-shadow: 0 4px 20px rgba(255, 255, 255, 0.1); 
+            flex-wrap: wrap; gap: 10px;
+        }
+        .nav-title { margin: 0; color: #f97316; font-size: 22px; font-weight: 700; }
+        .nav-btns { display: flex; gap: 8px; }
+        .nav-btns button { background: transparent; color: #94a3b8; border: none; padding: 8px 16px; border-radius: 10px; cursor: pointer; font-size: 15px; font-weight: 600; transition: all 0.3s ease; }
+        .nav-btns button.active, .nav-btns button:hover { background: #f97316; color: #ffffff; box-shadow: 0 0 15px rgba(249, 115, 22, 0.4); }
+
+        .section { display: none; }
+        .section.active { display: block; }
+
+        .box { 
+            background: #1e293b; padding: 30px; border-radius: 20px; 
+            border: 2px solid #ffffff; 
+            max-width: 420px; margin: 40px auto; text-align: center; 
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); 
+        }
+        .input-group { margin-bottom: 18px; text-align: left; }
+        .input-group label { display: block; margin-bottom: 6px; font-size: 14px; color: #cbd5e1; font-weight: 400; }
+        .input-group input { width: 100%; padding: 12px; border: 1px solid #334155; background: #0f172a; color: #ffffff; border-radius: 10px; outline: none; transition: 0.3s; font-size: 15px; }
+        .input-group input:focus { border-color: #f97316; box-shadow: 0 0 8px rgba(249, 115, 22, 0.5); }
+        
+        .btn { background: #f97316; color: #ffffff; border: none; padding: 12px; border-radius: 10px; cursor: pointer; width: 100%; font-size: 16px; font-weight: 600; transition: all 0.3s ease; }
+        .btn:hover { background: #ea580c; box-shadow: 0 0 15px rgba(249, 115, 22, 0.5); }
+        .btn:disabled { background: #64748b; cursor: not-allowed; box-shadow: none; }
+
+        .closed-banner {
+            background: #ef4444; color: white; padding: 12px; text-align: center;
+            border-radius: 12px; margin-bottom: 15px; font-weight: 700; font-size: 16px;
+            display: none;
+        }
+
+        .candidates-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); 
+            gap: 15px; 
+            margin-bottom: 25px; 
+        }
+        .card { 
+            background: #1e293b; padding: 18px 12px; border-radius: 16px; 
+            border: 2px solid #ffffff; 
+            text-align: center; 
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3); 
+            display: flex; flex-direction: column; justify-content: space-between;
+        }
+        
+        .candidate-code { font-size: 1rem; color: #f97316; font-weight: 700; letter-spacing: 0.5px; }
+        .candidate-title { margin: 4px 0; font-size: 1.35rem; color: #ffffff; font-weight: 700; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+        .score-num { font-size: 2.3rem; font-weight: 700; margin: 6px 0; color: #f97316; }
+
+        .charts-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .chart-box {
+            background: #1e293b; padding: 12px 20px; border-radius: 16px;
+            border: 2px solid #ffffff; position: relative;
+            height: 350px; width: 100%;
+        }
+
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); backdrop-filter: blur(4px); justify-content: center; align-items: center; z-index: 1000; padding: 15px; }
+        .modal-content { 
+            background: #1e293b; padding: 30px; border-radius: 20px; width: 100%; max-width: 360px; text-align: center; 
+            border: 2px solid #ffffff; 
+            box-shadow: 0 0 25px rgba(255, 255, 255, 0.2); 
+        }
+        .qr-img { width: 180px; height: 180px; margin: 15px 0 10px 0; border: 2px solid #ffffff; border-radius: 12px; }
+
+        table { width: 100%; border-collapse: collapse; text-align: left; margin-top: 15px; }
+        th, td { padding: 14px; border-bottom: 1px solid #334155; font-size: 14px; white-space: nowrap; }
+        th { color: #f97316; background: #0f172a; font-weight: 600; }
+        .badge { background: rgba(249, 115, 22, 0.2); color: #f97316; padding: 4px 12px; border-radius: 12px; border: 1px solid rgba(249, 115, 22, 0.4); font-weight: 600; }
+
+        @media (max-width: 600px) {
+            body { padding: 10px; }
+            .nav-bar { flex-direction: column; align-items: flex-start; }
+            .nav-btns { width: 100%; justify-content: space-between; }
+            .nav-btns button { flex: 1; padding: 8px 5px; font-size: 13px; margin-left: 0; }
+            .candidates-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+            .candidate-title { font-size: 1.2rem; }
+            .chart-box { height: 300px; padding: 10px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="nav-bar">
+            <h2 class="nav-title">🔥 KPRU VOTE</h2>
+            <div class="nav-btns">
+                <button id="nav-vote" class="active" onclick="switchTab('vote')">หน้าโหวต</button>
+                <button id="nav-chart" onclick="switchTab('chart')">กราฟผลโหวต</button>
+                <button id="nav-admin" onclick="switchTab('admin')">ประวัติการโหวต (Admin)</button>
+            </div>
+        </div>
+
+        <div id="tab-vote" class="section active">
+            <div id="closedBanner" class="closed-banner">⚠️ ระบบปิดรับการโหวตชั่วคราว</div>
+
+            <div id="loginSection" class="box">
+                <h2 style="color: #ffffff; margin-top: 0;">เข้าสู่ระบบเพื่อโหวต</h2>
+                <div class="input-group">
+                    <label>ชื่อ - นามสกุล:</label>
+                    <input type="text" id="fullname" placeholder="เช่น นายสมชาย ใจดี">
+                </div>
+                <div class="input-group">
+                    <label>รหัสนักศึกษา:</label>
+                    <input type="text" id="studentId" placeholder="เช่น 6501234567">
+                </div>
+                <div class="input-group">
+                    <label>เบอร์โทรศัพท์:</label>
+                    <input type="tel" id="phone" placeholder="เช่น 0812345678">
+                </div>
+                <button class="btn" onclick="login()">เข้าสู่หน้าโหวต</button>
+            </div>
+
+            <div id="voteSection" style="display: none;">
+                <p style="text-align: center; font-size: 18px; margin-bottom: 20px;">ผู้ใช้งาน: <strong id="userDisplay" style="color:#f97316;"></strong></p>
+                <div class="candidates-grid" id="voteGrid"></div>
+            </div>
+        </div>
+
+        <div id="tab-chart" class="section">
+            <div class="charts-wrapper">
+                <div class="chart-box">
+                    <h3 style="margin: 0 0 5px 0; color: #f97316; font-size: 18px;">👦🏻 ผู้สมัครกลุ่ม B</h3>
+                    <div style="position: relative; height: calc(100% - 30px); width: 100%;">
+                        <canvas id="chartB"></canvas>
+                    </div>
+                </div>
+                <div class="chart-box">
+                    <h3 style="margin: 0 0 5px 0; color: #f97316; font-size: 18px;">👩🏻 ผู้สมัครกลุ่ม G</h3>
+                    <div style="position: relative; height: calc(100% - 30px); width: 100%;">
+                        <canvas id="chartG"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-admin" class="section">
+            <div id="adminPassSection" class="box">
+                <h2 style="margin-top: 0;">🔐 เข้าสู่ระบบ Admin</h2>
+                <div class="input-group">
+                    <label>รหัสผ่าน Admin:</label>
+                    <input type="password" id="adminPassword" placeholder="กรอกรหัสผ่าน">
+                </div>
+                <button class="btn" onclick="loginAdmin()">เข้าสู่ระบบ</button>
+            </div>
+
+            <div id="adminDataSection" class="card" style="display: none; padding: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+                    <h2 style="margin: 0; color: #f97316;">📋 จัดการระบบและการโหวต</h2>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <button id="toggleVoteBtn" onclick="toggleVotingSystem()" style="background:#f97316; color:white; border:none; padding:10px 20px; border-radius:10px; cursor:pointer; font-weight:600; transition:0.3s;">
+                            สลับสถานะโหวต
+                        </button>
+                        <button onclick="logoutAdmin()" style="background:#ef4444; color:white; border:none; padding:10px 20px; border-radius:10px; cursor:pointer; font-weight:600;">
+                            ออกจากระบบ
+                        </button>
+                    </div>
+                </div>
+
+                <div style="overflow-x: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>วัน - เวลา</th>
+                                <th>ชื่อ - นามสกุล</th>
+                                <th>รหัสนักศึกษา</th>
+                                <th>เบอร์โทรศัพท์</th>
+                                <th>ผู้สมัคร</th>
+                                <th>จำนวนเงิน (คะแนน)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="logsTable"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal ป๊อปอัปโหวต -->
+    <div id="voteModal" class="modal">
+        <div class="modal-content">
+            <h3 id="modalTargetName" style="margin-top:0; color: #f97316;">โหวตให้...</h3>
+            <div class="input-group">
+                <label>จำนวนเงินโหวต (บาท):</label>
+                <input type="number" id="amount" value="20" min="1" style="text-align: center; font-size: 18px; font-weight: bold;">
+            </div>
+            
+            <!-- QR Code -->
+            <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=PromptPaySample" class="qr-img">
+            
+            <!-- ⏱️ แสดงเวลานับถอยหลังใต้ QR Code -->
+            <div style="background: #0f172a; padding: 8px 12px; border-radius: 10px; margin-bottom: 15px; font-weight: bold; color: #f97316; border: 1px solid #334155; display: inline-block;">
+                ⏱️ เวลาที่เหลือในการโหวต: <span id="timerDisplay" style="color: #ffffff; font-size: 17px;">05:00</span> นาที
+            </div>
+
+            <div class="input-group">
+                <label>แนบสลิปโอนเงิน:</label>
+                <input type="file" id="slipInput" accept="image/*">
+            </div>
+            <button class="btn" style="background: #22c55e; color:white;" onclick="submitVote()">ยืนยันส่งสลิปโหวต</button>
+            <button class="btn" style="background: transparent; color: #94a3b8; margin-top: 8px;" onclick="closeVoteModal()">ยกเลิก</button>
+        </div>
+    </div>
+
+    <script>
+        Chart.register(ChartDataLabels);
+
+        const candidates = [
+            { id: 1, code: 'B01', name: 'โดนัท' }, { id: 2, code: 'B02', name: 'โต' }, { id: 3, code: 'B03', name: 'ฟลุ๊ค' },
+            { id: 4, code: 'B04', name: 'ภัทร' }, { id: 5, code: 'B05', name: 'จีโน่' }, { id: 6, code: 'B06', name: 'บิว' },
+            { id: 7, code: 'B07', name: 'บูม' }, { id: 8, code: 'B08', name: 'มิวสิค' }, { id: 9, code: 'B09', name: 'ตี๋' },
+            { id: 10, code: 'B10', name: 'โฟกัส' }, { id: 11, code: 'B11', name: 'บีม' }, { id: 12, code: 'B12', name: 'บูม' },
+            { id: 13, code: 'B13', name: 'โอลี่' }, { id: 14, code: 'B14', name: 'เป๊ก' }, { id: 15, code: 'B15', name: 'ออม' },
+            { id: 16, code: 'B16', name: 'โฬม' }, { id: 17, code: 'B17', name: 'โฟกัส' }, { id: 18, code: 'B18', name: 'บอส' },
+            { id: 19, code: 'G01', name: 'ไข่มุก' }, { id: 20, code: 'G02', name: 'โมจิ' }, { id: 21, code: 'G03', name: 'น้ำอิง' },
+            { id: 22, code: 'G04', name: 'ซากีนะ' }, { id: 23, code: 'G05', name: 'ครีม' }, { id: 24, code: 'G06', name: 'ไหม' },
+            { id: 25, code: 'G07', name: 'ไข่มุก' }, { id: 26, code: 'G08', name: 'แพรวา' }, { id: 27, code: 'G09', name: 'ใบมิ้น' },
+            { id: 28, code: 'G10', name: 'บูม' }, { id: 29, code: 'G11', name: 'อั้ม' }, { id: 30, code: 'G12', name: 'ชมพู่' },
+            { id: 31, code: 'G13', name: 'หญิง' }, { id: 32, code: 'G14', name: 'การ์ตูน' }, { id: 33, code: 'G15', name: 'น้ำชา' },
+            { id: 34, code: 'G16', name: 'ซูพรีม' }, { id: 35, code: 'G17', name: 'พลอยใส' }, { id: 36, code: 'G18', name: 'แต้ม' }
+        ];
+
+        const socket = io();
+        let currentUser = null;
+        let selectedCandidateId = null;
+        let chartB = null;
+        let chartG = null;
+        let isAdminLoggedIn = false;
+        let globalVotingStatus = true;
+
+        let voteTimer = null;
+        let timeLeft = 300;
+
+        function renderCandidateCards() {
+            const voteGrid = document.getElementById('voteGrid');
+            voteGrid.innerHTML = '';
+
+            candidates.forEach(c => {
+                voteGrid.innerHTML += `
+                    <div class="card">
+                        <div>
+                            <div class="candidate-code">${c.code}</div>
+                            <h3 class="candidate-title">${c.name}</h3>
+                            <div class="score-num" id="vote-score-${c.id}">0</div>
+                        </div>
+                        <button class="btn vote-btn" onclick="openVoteModal(${c.id}, '${c.code} ${c.name}')">โหวต</button>
+                    </div>
+                `;
+            });
+            applyVotingStatusUI();
+        }
+
+        renderCandidateCards();
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-btns button').forEach(el => el.classList.remove('active'));
+
+            document.getElementById('tab-' + tabName).classList.add('active');
+            document.getElementById('nav-' + tabName).classList.add('active');
+
+            if (tabName === 'chart') {
+                if (!chartB || !chartG) {
+                    initChart();
+                } else {
+                    chartB.update();
+                    chartG.update();
+                }
+            }
+        }
+
+        function createChartConfig(candidatesList) {
+            return {
+                type: 'bar',
+                data: {
+                    labels: candidatesList.map(c => c.code),
+                    datasets: [{
+                        data: candidatesList.map(() => 0),
+                        backgroundColor: '#f97316',
+                        borderRadius: 4,
+                        categoryPercentage: 0.8,
+                        barPercentage: 0.85
+                    }]
+                },
+                options: {
+                    indexAxis: 'x',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { 
+                        legend: { display: false },
+                        datalabels: {
+                            anchor: 'end',
+                            align: 'end',
+                            color: '#ffffff',
+                            font: { family: 'Kanit', size: 11, weight: 'bold' },
+                            formatter: (value) => value > 0 ? value : '',
+                            offset: -2
+                        },
+                        tooltip: {
+                            callbacks: {
+                                title: (items) => {
+                                    const index = items[0].dataIndex;
+                                    return `${candidatesList[index].code} - ${candidatesList[index].name}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { 
+                            ticks: { 
+                                color: '#ffffff', 
+                                font: { family: 'Kanit', size: 11, weight: 'bold' },
+                                maxRotation: 0,
+                                minRotation: 0
+                            }, 
+                            grid: { display: false } 
+                        },
+                        y: { 
+                            beginAtZero: true,
+                            ticks: { color: '#cbd5e1', font: { family: 'Kanit', size: 11 } }, 
+                            grid: { color: '#334155' } 
+                        }
+                    }
+                }
+            };
+        }
+
+        function initChart() {
+            const groupB = candidates.filter(c => c.code.startsWith('B'));
+            const groupG = candidates.filter(c => c.code.startsWith('G'));
+
+            const ctxB = document.getElementById('chartB').getContext('2d');
+            const ctxG = document.getElementById('chartG').getContext('2d');
+
+            chartB = new Chart(ctxB, createChartConfig(groupB));
+            chartG = new Chart(ctxG, createChartConfig(groupG));
+            
+            fetch('/api/scores').then(res => res.json()).then(data => updateScoresUI(data));
+        }
+
+        function applyVotingStatusUI() {
+            const banner = document.getElementById('closedBanner');
+            const voteBtns = document.querySelectorAll('.vote-btn');
+            const toggleAdminBtn = document.getElementById('toggleVoteBtn');
+
+            if (globalVotingStatus) {
+                banner.style.display = 'none';
+                voteBtns.forEach(btn => {
+                    btn.disabled = false;
+                    btn.innerText = 'โหวต';
+                });
+                if (toggleAdminBtn) {
+                    toggleAdminBtn.style.background = '#22c55e';
+                    toggleAdminBtn.innerText = '🟢 เปิดโหวตอยู่ (คลิกเพื่อปิด)';
+                }
+            } else {
+                banner.style.display = 'block';
+                voteBtns.forEach(btn => {
+                    btn.disabled = true;
+                    btn.innerText = 'ปิดโหวต';
+                });
+                if (toggleAdminBtn) {
+                    toggleAdminBtn.style.background = '#ef4444';
+                    toggleAdminBtn.innerText = '🔴 ปิดโหวตอยู่ (คลิกเพื่อเปิด)';
+                }
+            }
+        }
+
+        function updateScoresUI(data) {
+            if (!data) return;
+            
+            if (data.isVotingOpen !== undefined) {
+                globalVotingStatus = data.isVotingOpen;
+                applyVotingStatusUI();
+            }
+
+            const scoresMap = data.scores || data;
+            const groupB = candidates.filter(c => c.code.startsWith('B'));
+            const groupG = candidates.filter(c => c.code.startsWith('G'));
+
+            candidates.forEach(c => {
+                const score = scoresMap[c.id] !== undefined ? scoresMap[c.id] : (scoresMap[String(c.id)] || 0);
+                const voteElem = document.getElementById(`vote-score-${c.id}`);
+                if (voteElem) voteElem.innerText = score;
+            });
+
+            if (chartB) {
+                chartB.data.datasets[0].data = groupB.map(c => scoresMap[c.id] !== undefined ? scoresMap[c.id] : (scoresMap[String(c.id)] || 0));
+                chartB.update();
+            }
+
+            if (chartG) {
+                chartG.data.datasets[0].data = groupG.map(c => scoresMap[c.id] !== undefined ? scoresMap[c.id] : (scoresMap[String(c.id)] || 0));
+                chartG.update();
+            }
+
+            if (isAdminLoggedIn && data.logs) {
+                renderLogs(data.logs);
+            }
+        }
+
+        socket.on('voteUpdate', (data) => updateScoresUI(data));
+        socket.on('statusUpdate', (data) => {
+            globalVotingStatus = data.isVotingOpen;
+            applyVotingStatusUI();
+        });
+
+        fetch('/api/scores')
+            .then(res => res.json())
+            .then(data => updateScoresUI(data))
+            .catch(err => console.log('Fetch scores error:', err));
+
+        function startVoteTimer() {
+            if (voteTimer) clearInterval(voteTimer);
+            
+            timeLeft = 300;
+            updateTimerDisplay();
+
+            voteTimer = setInterval(() => {
+                timeLeft--;
+                updateTimerDisplay();
+
+                if (timeLeft <= 0) {
+                    clearInterval(voteTimer);
+                    alert('หมดเวลาการทำรายการโหวต 5 นาที ระบบจะยกเลิกการโหวตครั้งนี้');
+                    closeVoteModal();
+                }
+            }, 1000);
+        }
+
+        function stopVoteTimer() {
+            if (voteTimer) {
+                clearInterval(voteTimer);
+                voteTimer = null;
+            }
+        }
+
+        function updateTimerDisplay() {
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            const formattedMinutes = String(minutes).padStart(2, '0');
+            const formattedSeconds = String(seconds).padStart(2, '0');
+            
+            const display = document.getElementById('timerDisplay');
+            if (display) {
+                display.innerText = `${formattedMinutes}:${formattedSeconds}`;
+            }
+        }
+
+        function login() {
+            const fullname = document.getElementById('fullname').value.trim();
+            const studentId = document.getElementById('studentId').value.trim();
+            const phone = document.getElementById('phone').value.trim();
+            
+            if (!fullname || !studentId || !phone) return alert('กรุณากรอกข้อมูลให้ครบถ้วน');
+            
+            currentUser = { fullname, studentId, phone };
+            document.getElementById('userDisplay').innerText = `${fullname} (${studentId})`;
+            document.getElementById('loginSection').style.display = 'none';
+            document.getElementById('voteSection').style.display = 'block';
+        }
+
+        function openVoteModal(id, name) {
+            if (!globalVotingStatus) return alert('ระบบปิดรับการโหวตชั่วคราว');
+            if (!currentUser) return alert('กรุณาเข้าสู่ระบบก่อนลงคะแนน');
+            selectedCandidateId = id;
+            document.getElementById('modalTargetName').innerText = 'โหวตให้: ' + name;
+            document.getElementById('voteModal').style.display = 'flex';
+
+            // เริ่มนับถอยหลังเมื่อเปิด Modal
+            startVoteTimer();
+        }
+
+        function closeVoteModal() {
+            stopVoteTimer();
+            document.getElementById('voteModal').style.display = 'none';
+            document.getElementById('slipInput').value = '';
+        }
+
+        async function submitVote() {
+            const amount = document.getElementById('amount').value;
+            const slipFile = document.getElementById('slipInput').files[0];
+
+            if (!globalVotingStatus) return alert('ระบบปิดรับการโหวตชั่วคราว');
+            if (!currentUser) return alert('กรุณาเข้าสู่ระบบก่อนลงคะแนน');
+            if (!slipFile) return alert('กรุณาแนบไฟล์สลิปการโอนเงิน');
+            if (!amount || amount <= 0) return alert('กรุณากรอกจำนวนเงินให้ถูกต้อง');
+
+            const formData = new FormData();
+            formData.append('fullname', currentUser.fullname);
+            formData.append('studentId', currentUser.studentId);
+            formData.append('phone', currentUser.phone);
+            formData.append('candidateId', selectedCandidateId);
+            formData.append('amount', amount);
+            formData.append('slip', slipFile);
+
+            try {
+                const res = await fetch('/api/vote', { method: 'POST', body: formData });
+                const result = await res.json();
+                
+                if (result.success) {
+                    alert(result.message);
+                    closeVoteModal();
+                } else {
+                    alert(result.message || 'เกิดข้อผิดพลาดในการโหวต');
+                }
+            } catch (err) {
+                alert('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
+            }
+        }
+
+        function loginAdmin() {
+            const pass = document.getElementById('adminPassword').value;
+            if (pass === '0000') {
+                isAdminLoggedIn = true;
+                document.getElementById('adminPassSection').style.display = 'none';
+                document.getElementById('adminDataSection').style.display = 'block';
+                applyVotingStatusUI();
+                fetch('/api/admin/logs').then(res => res.json()).then(data => renderLogs(data.logs));
+            } else {
+                alert('รหัสผ่าน Admin ไม่ถูกต้อง!');
+            }
+        }
+
+        function logoutAdmin() {
+            isAdminLoggedIn = false;
+            document.getElementById('adminPassword').value = '';
+            document.getElementById('adminPassSection').style.display = 'block';
+            document.getElementById('adminDataSection').style.display = 'none';
+        }
+
+        async function toggleVotingSystem() {
+            const nextStatus = !globalVotingStatus;
+            try {
+                const res = await fetch('/api/admin/toggle-vote', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ open: nextStatus })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    globalVotingStatus = data.isVotingOpen;
+                    applyVotingStatusUI();
+                }
+            } catch (err) {
+                alert('ไม่สามารถเปลี่ยนสถานะการโหวตได้');
+            }
+        }
+
+        function renderLogs(logs) {
+            const tableBody = document.getElementById('logsTable');
+            tableBody.innerHTML = '';
+            logs.forEach(log => {
+                const targetCandidate = candidates.find(c => c.id === Number(log.candidateId));
+                const candidateLabel = targetCandidate ? `${targetCandidate.code} ${targetCandidate.name}` : `เบอร์ ${log.candidateId}`;
+
+                tableBody.innerHTML += `
+                    <tr>
+                        <td>${log.timestamp}</td>
+                        <td><strong>${log.fullname || '-'}</strong></td>
+                        <td>${log.studentId}</td>
+                        <td>${log.phone}</td>
+                        <td><span class="badge">${candidateLabel}</span></td>
+                        <td><strong style="color: #22c55e;">+${log.amount} ฿</strong></td>
+                    </tr>
+                `;
+            });
+        }
+    </script>
+</body>
+</html>
