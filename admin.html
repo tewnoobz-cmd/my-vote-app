@@ -18,6 +18,8 @@
         th, td { padding: 12px 16px; border-bottom: 1px solid #e9edf7; font-size: 14px; }
         th { background-color: #f8f9ff; color: #a3aed0; }
         .badge { background: #e9f2ff; color: #4318ff; padding: 4px 10px; border-radius: 12px; font-weight: 600; }
+        .btn-approve { background: #05cd99; color: white; border: none; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-weight: 600; }
+        .btn-reject { background: #ee5d50; color: white; border: none; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-weight: 600; margin-left: 4px; }
     </style>
 </head>
 <body>
@@ -30,9 +32,8 @@
 
         <div class="grid">
             <div class="card">
-                <h3>สรุปคะแนนรวม</h3>
-                <p>หมายเลข 1: <strong id="score1" style="color:#4318ff;">0</strong> คะแนน</p>
-                <p>หมายเลข 2: <strong id="score2" style="color:#ffb800;">0</strong> คะแนน</p>
+                <h3>สรุปคะแนนรวมทั้งหมด</h3>
+                <div id="summaryScores" style="max-height: 200px; overflow-y: auto;"></div>
             </div>
             <div class="card">
                 <canvas id="voteChart" height="120"></canvas>
@@ -40,15 +41,18 @@
         </div>
 
         <div class="card">
-            <h2>ประวัติการโหวตทั้งหมด</h2>
+            <h2>ประวัติการโหวตและการอนุมัติสลิป</h2>
             <table>
                 <thead>
                     <tr>
                         <th>เวลา</th>
-                        <th>รหัสนักศึกษา</th>
-                        <th>เบอร์โทรศัพท์</th>
+                        <th>ชื่อ - นามสกุล</th>
+                        <th>รหัสนักศึกษา/ผู้ปกครอง</th>
                         <th>ผู้สมัคร</th>
                         <th>จำนวนเงิน</th>
+                        <th>สลิป</th>
+                        <th>สถานะ</th>
+                        <th>การจัดการ</th>
                     </tr>
                 </thead>
                 <tbody id="logsTable"></tbody>
@@ -65,12 +69,12 @@
             voteChart = new Chart(ctx, {
                 type: 'bar',
                 data: {
-                    labels: ['ผู้สมัคร หมายเลข 1', 'ผู้สมัคร หมายเลข 2'],
+                    labels: Array.from({length: 36}, (_, i) => `เบอร์ ${i + 1}`),
                     datasets: [{
                         label: 'คะแนนโหวตทั้งหมด',
-                        data: [0, 0],
-                        backgroundColor: ['#4318ff', '#ffb800'],
-                        borderRadius: 8
+                        data: Array(36).fill(0),
+                        backgroundColor: '#4318ff',
+                        borderRadius: 6
                     }]
                 },
                 options: {
@@ -80,32 +84,60 @@
             });
         }
 
+        async function verifyVote(voteId, status) {
+            try {
+                const res = await fetch('/api/admin/verify-vote', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ voteId, status })
+                });
+                const data = await res.json();
+                if (!data.success) alert(data.message);
+            } catch (err) {
+                alert('เกิดข้อผิดพลาดในการอัปเดตสถานะ');
+            }
+        }
+
         socket.on('voteUpdate', (data) => {
-            const score1 = data.scores[1] || 0;
-            const score2 = data.scores[2] || 0;
-
-            document.getElementById('score1').innerText = score1;
-            document.getElementById('score2').innerText = score2;
-
+            const scores = data.scores || {};
+            
             if (voteChart) {
-                voteChart.data.datasets[0].data = [score1, score2];
+                const chartData = [];
+                for (let i = 1; i <= 36; i++) {
+                    chartData.push(scores[i] || 0);
+                }
+                voteChart.data.datasets[0].data = chartData;
                 voteChart.update();
             }
 
             const tableBody = document.getElementById('logsTable');
             tableBody.innerHTML = '';
             
-            data.logs.forEach(log => {
-                tableBody.innerHTML += `
-                    <tr>
-                        <td>${log.timestamp}</td>
-                        <td><strong>${log.studentId}</strong></td>
-                        <td>${log.phone}</td>
-                        <td><span class="badge">หมายเลข ${log.candidateId}</span></td>
-                        <td><strong style="color: #05cd99;">+${log.amount} ฿</strong></td>
-                    </tr>
-                `;
-            });
+            if (data.logs) {
+                data.logs.forEach(log => {
+                    const slipBtn = log.slipUrl 
+                        ? `<a href="${log.slipUrl}" target="_blank" style="color:#4318ff;">ดูสลิป</a>` 
+                        : '-';
+
+                    const actionBtns = log.status === 'pending'
+                        ? `<button class="btn-approve" onclick="verifyVote(${log.id}, 'approved')">อนุมัติ</button>
+                           <button class="btn-reject" onclick="verifyVote(${log.id}, 'rejected')">ปฏิเสธ</button>`
+                        : '-';
+
+                    tableBody.innerHTML += `
+                        <tr>
+                            <td>${log.timestamp}</td>
+                            <td><strong>${log.fullname || '-'}</strong></td>
+                            <td>${log.studentId}</td>
+                            <td><span class="badge">เบอร์ ${log.candidateId}</span></td>
+                            <td><strong style="color: #05cd99;">+${log.amount} ฿</strong></td>
+                            <td>${slipBtn}</td>
+                            <td>${log.status}</td>
+                            <td>${actionBtns}</td>
+                        </tr>
+                    `;
+                });
+            }
         });
 
         initChart();

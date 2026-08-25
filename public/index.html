@@ -1,0 +1,1507 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบโหวตลงคะแนนนักศึกษา - FRESHY NIGHT KPRU</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;800;900&family=Kanit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+    <style>
+        :root {
+            --gold-primary: #f59e0b;
+            --gold-light: #fde047;
+            --gold-dark: #b45309;
+            --gold-gradient: linear-gradient(135deg, #fff7ed 0%, #fde047 30%, #f59e0b 70%, #92400e 100%);
+            --glass-bg: rgba(20, 12, 38, 0.85);
+        }
+
+        * { box-sizing: border-box; font-family: 'Kanit', sans-serif; margin: 0; padding: 0; }
+        
+        body { 
+            padding: 30px 20px; 
+            color: #ffffff; 
+            min-height: 100vh;
+            background-color: #06020c;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        #bg-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        @property --border-angle {
+            syntax: '<angle>';
+            inherits: false;
+            initial-value: 0deg;
+        }
+
+        @keyframes spinBorder {
+            0% { --border-angle: 0deg; }
+            100% { --border-angle: 360deg; }
+        }
+
+        .container { max-width: 1400px; margin: 0 auto; width: 100%; position: relative; z-index: 10; }
+        
+        .nav-bar { 
+            display: flex; justify-content: space-between; align-items: center; 
+            background: rgba(20, 12, 38, 0.7);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            padding: 16px 32px; border-radius: 24px; margin-bottom: 35px; 
+            flex-wrap: wrap; gap: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .nav-title { 
+            display: inline-flex;
+            align-items: center;
+            gap: 14px;
+            font-family: 'Cinzel', serif;
+            font-size: 24px;
+            font-weight: 800;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+        }
+
+        .star-icon {
+            font-size: 24px;
+            background: linear-gradient(135deg, #fff7ed 0%, #fde047 40%, #f59e0b 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 0 10px rgba(253, 224, 71, 0.8));
+            animation: starPulse 2s infinite alternate ease-in-out;
+        }
+
+        @keyframes starPulse {
+            0% { transform: scale(0.95); filter: drop-shadow(0 0 8px rgba(245, 158, 11, 0.6)); }
+            100% { transform: scale(1.15); filter: drop-shadow(0 0 16px rgba(253, 224, 71, 1)); }
+        }
+
+        .gold-text {
+            font-family: 'Cinzel', serif;
+            background: linear-gradient(180deg, #ffffff 0%, #fff7ed 20%, #fde047 50%, #f59e0b 80%, #92400e 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 900;
+            letter-spacing: 3.5px;
+            filter: drop-shadow(0 2px 8px rgba(245, 158, 11, 0.4));
+        }
+
+        .equality-text {
+            display: inline-flex;
+            gap: 1px;
+            font-family: 'Cinzel', serif;
+            font-weight: 900;
+            letter-spacing: 3.5px;
+        }
+        .equality-text span {
+            display: inline-block;
+            font-family: 'Cinzel', serif;
+            transition: transform 0.3s ease;
+        }
+        .equality-text span:hover { transform: translateY(-3px) scale(1.15); }
+        .equality-text span:nth-child(1) { color: #ff3366; text-shadow: 0 0 12px rgba(255, 51, 102, 0.8); }
+        .equality-text span:nth-child(2) { color: #ff9933; text-shadow: 0 0 12px rgba(255, 153, 51, 0.8); }
+        .equality-text span:nth-child(3) { color: #ffee33; text-shadow: 0 0 12px rgba(255, 238, 51, 0.8); }
+        .equality-text span:nth-child(4) { color: #33ff77; text-shadow: 0 0 12px rgba(51, 255, 119, 0.8); }
+        .equality-text span:nth-child(5) { color: #33ddff; text-shadow: 0 0 12px rgba(51, 221, 255, 0.8); }
+        .equality-text span:nth-child(6) { color: #8855ff; text-shadow: 0 0 12px rgba(136, 85, 255, 0.8); }
+        .equality-text span:nth-child(7) { color: #e055ff; text-shadow: 0 0 12px rgba(224, 85, 255, 0.8); }
+        .equality-text span:nth-child(8) { color: #ff55b5; text-shadow: 0 0 12px rgba(255, 85, 181, 0.8); }
+
+        .nav-btns { display: flex; gap: 12px; }
+        .nav-btns button { 
+            background: rgba(255, 255, 255, 0.08); 
+            color: #f1f5f9; border: 1px solid rgba(255, 255, 255, 0.2); 
+            padding: 10px 22px; border-radius: 14px; cursor: pointer; font-size: 14px; font-weight: 500; 
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+        }
+        .nav-btns button.active, .nav-btns button:hover { 
+            background: var(--gold-gradient); 
+            color: #1e1b4b; font-weight: 700;
+            border-color: var(--gold-light);
+            box-shadow: 0 0 25px rgba(245, 158, 11, 0.7); 
+            transform: translateY(-2px) scale(1.03);
+        }
+
+        .section { display: none; }
+        .section.active { display: block; }
+
+        .vote-header {
+            text-align: center;
+            margin-bottom: 35px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .main-hero-title {
+            font-family: 'Cinzel', serif;
+            font-size: 48px;
+            font-weight: 900;
+            letter-spacing: 6px;
+            text-transform: uppercase;
+            background: linear-gradient(
+                110deg, 
+                #aa771c 0%, 
+                #b38728 20%, 
+                #fcf6ba 45%, 
+                #ffffff 50%, 
+                #fcf6ba 55%, 
+                #b38728 80%, 
+                #aa771c 100%
+            );
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: 
+                drop-shadow(0 0 2px rgba(255, 255, 255, 0.9))
+                drop-shadow(0 0 12px rgba(245, 158, 11, 0.7))
+                drop-shadow(0 0 30px rgba(217, 119, 6, 0.5))
+                drop-shadow(0 10px 20px rgba(0, 0, 0, 0.9));
+            animation: goldShimmerMove 3.5s linear infinite;
+            margin-bottom: 25px;
+        }
+
+        @keyframes goldShimmerMove {
+            0% {
+                background-position: 200% center;
+                filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.8)) drop-shadow(0 0 10px rgba(245, 158, 11, 0.6));
+            }
+            50% {
+                filter: drop-shadow(0 0 4px rgba(255, 255, 255, 1)) drop-shadow(0 0 20px rgba(253, 224, 71, 0.9));
+            }
+            100% {
+                background-position: -200% center;
+                filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.8)) drop-shadow(0 0 10px rgba(245, 158, 11, 0.6));
+            }
+        }
+
+        .search-container {
+            width: 100%;
+            max-width: 650px;
+            margin-bottom: 20px;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 16px 28px;
+            border-radius: 50px;
+            background: rgba(255, 255, 255, 0.95);
+            border: none;
+            font-size: 16px;
+            color: #1e1b4b;
+            outline: none;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            transition: all 0.3s ease;
+        }
+
+        .search-input:focus {
+            box-shadow: 0 0 25px rgba(245, 158, 11, 0.8);
+            transform: scale(1.02);
+        }
+
+        .filter-buttons-group {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .filter-btn {
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: #ffffff;
+            padding: 10px 28px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 600;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+
+        .filter-btn:hover, .filter-btn.active {
+            background: rgba(245, 158, 11, 0.25);
+            border-color: var(--gold-light);
+            color: var(--gold-light);
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.4);
+        }
+
+        .rules-dropdown-btn {
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: #ffffff;
+            padding: 12px 32px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+
+        .rules-dropdown-btn:hover {
+            background: rgba(255, 255, 255, 0.22);
+            border-color: #ffffff;
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+        }
+
+        .rules-dropdown-btn .arrow-icon { font-size: 12px; transition: transform 0.3s ease; }
+        .rules-dropdown-btn.active .arrow-icon { transform: rotate(180deg); }
+
+        .rules-container {
+            width: 100%;
+            max-width: 650px;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease-in-out, opacity 0.3s ease, margin-top 0.3s ease;
+            opacity: 0;
+            margin-top: 0;
+        }
+
+        .rules-container.open {
+            max-height: 500px;
+            opacity: 1;
+            margin-top: 15px;
+        }
+
+        .rules-content-box {
+            background: rgba(20, 12, 38, 0.9);
+            border: 1px solid rgba(245, 158, 11, 0.4);
+            border-radius: 20px;
+            padding: 20px 25px;
+            text-align: left;
+            backdrop-filter: blur(15px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5), 0 0 20px rgba(245, 158, 11, 0.2);
+        }
+
+        .rules-content-box h4 {
+            color: var(--gold-light);
+            font-size: 18px;
+            margin-bottom: 12px;
+            border-bottom: 1px solid rgba(245, 158, 11, 0.3);
+            padding-bottom: 8px;
+            text-align: center;
+        }
+
+        .rules-content-box ul {
+            padding-left: 20px;
+            color: #e2e8f0;
+            font-size: 14px;
+            line-height: 1.8;
+        }
+
+        .group-header-title {
+            color: var(--gold-light);
+            font-size: 22px;
+            font-weight: 700;
+            margin: 25px 0 15px 0;
+            text-align: left;
+            border-bottom: 1px solid rgba(245, 158, 11, 0.3);
+            padding-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .box { 
+            background: rgba(20, 12, 38, 0.75);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
+            padding: 45px 35px; border-radius: 28px; 
+            max-width: 450px; margin: 40px auto; text-align: center; 
+            box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+        }
+
+        .input-group { margin-bottom: 22px; text-align: left; }
+        .input-group label { display: block; margin-bottom: 8px; font-size: 14px; color: #e2e8f0; font-weight: 500; }
+        
+        .input-group input { 
+            width: 100%; 
+            padding: 14px 18px; 
+            color: #ffffff; 
+            border-radius: 14px; 
+            outline: none; 
+            transition: all 0.3s ease; 
+            font-size: 15px; 
+            background: 
+                linear-gradient(rgba(18, 12, 35, 0.95), rgba(18, 12, 35, 0.95)) padding-box,
+                conic-gradient(from var(--border-angle), #92400e 0%, #f59e0b 25%, #fff7ed 35%, #fde047 50%, #f59e0b 75%, #92400e 100%) border-box;
+            border: 2px solid transparent;
+            animation: spinBorder 3.5s linear infinite;
+        }
+
+        .input-group input:focus { 
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.6); 
+            animation: spinBorder 1.8s linear infinite;
+        }
+
+        .select-wrapper {
+            position: relative;
+            width: 100%;
+            border-radius: 14px;
+            background: 
+                linear-gradient(rgba(18, 12, 35, 0.95), rgba(18, 12, 35, 0.95)) padding-box,
+                conic-gradient(from var(--border-angle), #92400e 0%, #f59e0b 25%, #fff7ed 35%, #fde047 50%, #f59e0b 75%, #92400e 100%) border-box;
+            border: 2px solid transparent;
+            animation: spinBorder 3.5s linear infinite;
+            transition: all 0.3s ease;
+        }
+
+        .select-wrapper:focus-within {
+            box-shadow: 0 0 20px rgba(245, 158, 11, 0.8);
+            animation: spinBorder 1.8s linear infinite;
+        }
+
+        .input-group select {
+            width: 100%;
+            padding: 14px 40px 14px 18px;
+            color: #fde047;
+            font-weight: 600;
+            border-radius: 12px;
+            outline: none;
+            font-size: 15px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            background-image: url("data:image/svg+xml;utf8,<svg fill='%23fde047' height='24' viewBox='0 0 24 24' width='24' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/></svg>");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+        }
+
+        .input-group select option {
+            background-color: #120924;
+            color: #ffffff;
+            padding: 12px;
+            font-size: 15px;
+            font-weight: 500;
+        }
+        
+        .btn { 
+            background: var(--gold-gradient); 
+            color: #1e1b4b; border: 1px solid var(--gold-light); padding: 14px; border-radius: 14px; 
+            cursor: pointer; width: 100%; font-size: 16px; font-weight: 700; 
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 20px rgba(245, 158, 11, 0.4);
+            letter-spacing: 0.5px;
+        }
+        .btn:hover { 
+            box-shadow: 0 8px 30px rgba(245, 158, 11, 0.8); 
+            transform: translateY(-3px); filter: brightness(1.1);
+        }
+        .btn:disabled { background: #475569; border-color: #64748b; color: #cbd5e1; cursor: not-allowed; box-shadow: none; transform: none; }
+
+        .closed-banner {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.9), rgba(185, 28, 28, 0.9)); 
+            color: white; padding: 16px; text-align: center;
+            border-radius: 16px; margin-bottom: 25px; font-weight: 700; font-size: 16px;
+            display: none; box-shadow: 0 0 25px rgba(239, 68, 68, 0.6);
+            border: 1px solid rgba(254, 202, 202, 0.5);
+        }
+
+        .candidates-grid { 
+            display: grid; 
+            grid-template-columns: repeat(3, 1fr); 
+            gap: 25px; 
+            margin-bottom: 35px; 
+        }
+        .card { 
+            background: rgba(20, 12, 38, 0.75);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
+            padding: 24px 20px; border-radius: 24px; 
+            text-align: center; 
+            display: flex; flex-direction: column; justify-content: space-between;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            cursor: pointer;
+        }
+        .card:hover { 
+            transform: translateY(-8px) scale(1.02); 
+            box-shadow: 0 15px 35px rgba(15, 10, 28, 0.8), 0 0 25px rgba(245, 158, 11, 0.4);
+            border-color: rgba(253, 224, 71, 0.8);
+        }
+        
+        .candidate-img-box {
+            width: 100%;
+            height: 230px;
+            border-radius: 16px;
+            overflow: hidden;
+            margin: 12px 0;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            background: rgba(0, 0, 0, 0.4);
+            position: relative;
+        }
+
+        .candidate-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center;
+            transition: transform 0.4s ease;
+        }
+
+        .card:hover .candidate-img {
+            transform: scale(1.06);
+        }
+
+        .candidate-code { font-size: 1.1rem; color: #fde047; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; }
+        .candidate-title { margin: 6px 0; font-size: 1.5rem; color: #ffffff; font-weight: 700; }
+        .score-num { 
+            font-size: 2.8rem; font-weight: 800; margin: 6px 0 12px 0; 
+            background: var(--gold-gradient);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 4px 10px rgba(245, 158, 11, 0.4));
+        }
+
+        .charts-wrapper { display: flex; flex-direction: column; gap: 25px; }
+        .chart-box { 
+            background: rgba(20, 12, 38, 0.75);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+            backdrop-filter: blur(15px); 
+            padding: 24px 28px; border-radius: 24px; 
+            position: relative; height: 380px; width: 100%; 
+        }
+
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 10, 28, 0.88); backdrop-filter: blur(12px); justify-content: center; align-items: center; z-index: 1000; padding: 15px; }
+        .modal-content { 
+            background: rgba(20, 12, 38, 0.95);
+            border: 1px solid rgba(245, 158, 11, 0.4);
+            padding: 35px; border-radius: 28px; width: 100%; max-width: 420px; text-align: center; 
+            box-shadow: 0 25px 50px rgba(0,0,0,0.8), 0 0 30px rgba(245, 158, 11, 0.3); 
+        }
+
+        .amount-btn-group {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 15px;
+        }
+
+        .amount-btn {
+            flex: 1;
+            padding: 10px 0;
+            font-size: 15px;
+            font-weight: 700;
+            border-radius: 12px;
+            border: 1px solid rgba(245, 158, 11, 0.4);
+            background: rgba(255, 255, 255, 0.08);
+            color: #ffffff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .amount-btn:hover {
+            background: rgba(245, 158, 11, 0.2);
+            border-color: #fde047;
+        }
+
+        .amount-btn.active {
+            background: var(--gold-gradient);
+            color: #1e1b4b;
+            border-color: #fde047;
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.6);
+        }
+
+        table { width: 100%; border-collapse: separate; border-spacing: 0; text-align: left; margin-top: 15px; }
+        th, td { padding: 18px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); font-size: 14px; white-space: nowrap; }
+        th { color: var(--gold-primary); background: rgba(20, 15, 45, 0.9); font-weight: 700; border-top: 1px solid rgba(245, 158, 11, 0.4); }
+        th:first-child { border-top-left-radius: 14px; }
+        th:last-child { border-top-right-radius: 14px; }
+        .badge { background: rgba(245, 158, 11, 0.25); color: var(--gold-light); padding: 6px 16px; border-radius: 20px; border: 1px solid rgba(245, 158, 11, 0.5); font-weight: 600; }
+
+        .btn-approve { background: #16a34a; color: white; border: none; padding: 8px 16px; border-radius: 10px; cursor: pointer; font-weight: 700; transition: 0.2s; }
+        .btn-approve:hover { background: #22c55e; }
+        .btn-reject { background: #dc2626; color: white; border: none; padding: 8px 16px; border-radius: 10px; cursor: pointer; font-weight: 700; margin-left: 6px; transition: 0.2s; }
+        .btn-reject:hover { background: #ef4444; }
+        .status-pending { color: #facc15; font-weight: 700; }
+        .status-approved { color: #4ade80; font-weight: 700; }
+        .status-rejected { color: #f87171; font-weight: 700; }
+
+        @media (max-width: 992px) {
+            .candidates-grid { grid-template-columns: repeat(2, 1fr); gap: 20px; }
+            .candidate-img-box { height: 200px; }
+        }
+
+        @media (max-width: 600px) {
+            body { padding: 15px 10px; }
+            .nav-bar { flex-direction: column; align-items: stretch; gap: 15px; text-align: center; padding: 18px; }
+            .nav-title { justify-content: center; font-size: 18px; gap: 8px; letter-spacing: 2px; }
+            .star-icon { font-size: 18px; }
+            .nav-btns { justify-content: space-between; }
+            .nav-btns button { flex: 1; padding: 10px 5px; font-size: 13px; }
+            .main-hero-title { font-size: 24px; letter-spacing: 3px; }
+            .candidates-grid { grid-template-columns: 1fr; gap: 15px; }
+            .candidate-img-box { height: 250px; }
+            .box { padding: 30px 20px; }
+            .chart-box { height: 320px; padding: 15px; }
+        }
+
+        .summary-filter-btn {
+            padding: 8px 24px;
+            border-radius: 9999px;
+            border: 1px solid rgba(245, 158, 11, 0.4);
+            background: rgba(30, 27, 75, 0.6);
+            color: #ffffff;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .summary-filter-btn.active, .summary-filter-btn:hover {
+            background-color: rgba(245, 158, 11, 0.25);
+            border-color: #fde047;
+            color: #fde047;
+            box-shadow: 0 0 10px rgba(245, 158, 11, 0.4);
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="bg-canvas"></canvas>
+
+    <div class="container">
+        <!-- Main Navbar Header -->
+        <div class="nav-bar">
+            <div class="nav-title">
+                <span class="star-icon">✦</span>
+                <span class="gold-text">THE NEW ERA</span>
+                <span class="equality-text">
+                    <span>E</span><span>Q</span><span>U</span><span>A</span><span>L</span><span>I</span><span>T</span><span>Y</span>
+                </span>
+            </div>
+            <div class="nav-btns">
+                <button id="nav-vote" class="active" onclick="switchTab('vote')">หน้าโหวต</button>
+                <button id="nav-chart" onclick="switchTab('chart')">กราฟผลโหวต</button>
+                <button id="nav-summary" onclick="switchTab('summary')">สรุปผลโหวต (Admin)</button>
+                <button id="nav-admin" onclick="switchTab('admin')">ประวัติการโหวต (Admin)</button>
+            </div>
+        </div>
+
+        <!-- แท็บ 1: หน้าโหวต -->
+        <div id="tab-vote" class="section active">
+            <div id="closedBanner" class="closed-banner">⚠️ ขณะนี้ระบบปิดรับการโหวตชั่วคราว</div>
+
+            <div id="loginSection" class="box">
+                <h2 style="color: #ffffff; margin-top: 0; font-weight: 700; font-size: 24px; margin-bottom: 20px;">เข้าสู่ระบบเพื่อโหวต</h2>
+                <div class="input-group">
+                    <label>ประเภทผู้ใช้งาน:</label>
+                    <div class="select-wrapper">
+                        <select id="userRole" onchange="toggleStudentIdInput()">
+                            <option value="student">🎓 นักศึกษา</option>
+                            <option value="parent">👨‍👩‍👧‍👦 ผู้ปกครอง</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>ชื่อ - นามสกุล:</label>
+                    <input type="text" id="fullname" placeholder="เช่น นายนราวิชญ์ มุสิกะพงษ์">
+                </div>
+                <div class="input-group" id="studentIdGroup">
+                    <label>รหัสนักศึกษา:</label>
+                    <input type="text" id="studentId" placeholder="เช่น 671321124" maxlength="13" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+                </div>
+                <div class="input-group">
+                    <label>เบอร์โทรศัพท์:</label>
+                    <input type="tel" id="phone" placeholder="เช่น 0654079541" maxlength="10" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+                </div>
+                <button class="btn" onclick="login()">เข้าสู่หน้าโหวต</button>
+            </div>
+
+            <div id="voteSection" style="display: none;">
+                <div class="vote-header">
+                    <h1 class="main-hero-title">STAR SHINING IN THE SKY</h1>
+                    
+                    <div class="search-container">
+                        <input type="text" id="searchInput" class="search-input" placeholder="ค้นหาทำไมก็เลื่อนเอาสิ •⩊•" oninput="filterCandidates()">
+                    </div>
+
+                    <div class="filter-buttons-group">
+                        <button class="filter-btn active" onclick="filterGender('ALL', event)">ทั้งหมด</button>
+                        <button class="filter-btn" onclick="filterGender('B', event)">MALE</button>
+                        <button class="filter-btn" onclick="filterGender('G', event)">FEMALE</button>
+                    </div>
+
+                    <button class="rules-dropdown-btn" id="rulesToggleBtn" onclick="toggleRules()">
+                        📜 เกณฑ์การประกวด <span class="arrow-icon">▼</span>
+                    </button>
+
+                    <div class="rules-container" id="rulesContainer">
+                        <div class="rules-content-box">
+                            <h4>📌 เกณฑ์การตัดสิน</h4>
+                            <ul>
+                                <li>การลงคะแนนโหวตนับจากยอดจำนวนเงินโอน</li>
+                                <li>ต้องทำการแนบสลิปการโอนเงินที่ถูกต้องเพื่อยืนยันการลงคะแนน</li>
+                                <li>ระบบจะทำการตรวจสอบสลิปย้อนหลังโดยผู้ดูแลระบบ (Admin)</li>
+                                <li>ผู้ที่มีคะแนนโหวตสูงสุดในแต่ละประเภทจะได้รับรางวัลขวัญใจ KPRU</li>
+                                <li>เปิดรับโหวตถึงเวลาตามที่คณะกรรมการจัดงานกำหนดเท่านั้น</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <p style="text-align: center; font-size: 19px; margin-bottom: 30px; color: #cbd5e1;">
+                    ผู้ใช้งาน: <strong id="userDisplay" style="color:var(--gold-primary);"></strong>
+                </p>
+                <div id="voteContainer"></div>
+            </div>
+        </div>
+
+        <!-- แท็บ 2: กราฟผลโหวต -->
+        <div id="tab-chart" class="section">
+            <div class="charts-wrapper">
+                <div class="chart-box">
+                    <h3 style="margin: 0 0 12px 0; color: var(--gold-primary); font-size: 19px; font-weight: 700;">👦🏻 ผู้สมัครกลุ่ม B (MALE)</h3>
+                    <div style="position: relative; height: calc(100% - 40px); width: 100%;">
+                        <canvas id="chartB"></canvas>
+                    </div>
+                </div>
+                <div class="chart-box">
+                    <h3 style="margin: 0 0 12px 0; color: var(--gold-primary); font-size: 19px; font-weight: 700;">👩🏻 ผู้สมัครกลุ่ม G (FEMALE)</h3>
+                    <div style="position: relative; height: calc(100% - 40px); width: 100%;">
+                        <canvas id="chartG"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- แท็บ 3: สรุปผลโหวต (Admin Only) -->
+        <div id="tab-summary" class="section">
+            <div id="summaryLockSection" class="box">
+                <h2 style="color: #ffffff; margin-bottom: 15px;">🔒 สรุปผลโหวตเฉพาะ Admin</h2>
+                <p style="color: #cbd5e1; margin-bottom: 20px;">กรุณาล็อกอินเข้าสู่ระบบ Admin เพื่อดูสรุปผลการแข่งขัน</p>
+                <button class="btn" onclick="switchTab('admin')">ไปหน้าเข้าสู่ระบบ Admin</button>
+            </div>
+
+            <div id="summaryContentSection" style="display: none;">
+                <div style="text-align: center; margin-bottom: 30px;">
+                    <h1 class="main-hero-title">🏆 สรุปผลการแข่งขัน 🏆</h1>
+                </div>
+                <div id="summaryGrid" style="max-width: 1200px; margin: 0 auto;"></div>
+            </div>
+        </div>
+
+        <!-- แท็บ 4: ระบบ Admin -->
+        <div id="tab-admin" class="section">
+            <div id="adminPassSection" class="box">
+                <h2 style="margin-top: 0; color: #ffffff; margin-bottom: 20px;">🔐 เข้าสู่ระบบ Admin</h2>
+                <div class="input-group">
+                    <label>รหัสผ่าน Admin:</label>
+                    <input type="password" id="adminPassword" placeholder="กรอกรหัสผ่าน">
+                </div>
+                <button class="btn" onclick="loginAdmin()">เข้าสู่ระบบ</button>
+            </div>
+
+            <div id="adminDataSection" class="box" style="display: none; max-width: 100%; padding: 30px; text-align: left;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; flex-wrap: wrap; gap: 15px;">
+                    <h2 style="margin: 0; color: var(--gold-primary); font-size: 24px;">📋 จัดการระบบและการอนุมัติสลิป</h2>
+                    <div style="display: flex; gap: 12px; align-items: center;">
+                        <button id="toggleVoteBtn" onclick="toggleVotingSystem()" style="background:#22c55e; color:white; border:none; padding:12px 24px; border-radius:12px; cursor:pointer; font-weight:700; transition:0.3s;">
+                            🟢 เปิดโหวตอยู่ (คลิกเพื่อปิด)
+                        </button>
+                        <button onclick="logoutAdmin()" style="background:#ef4444; color:white; border:none; padding:12px 24px; border-radius:12px; cursor:pointer; font-weight:700;">
+                            ออกจากระบบ
+                        </button>
+                    </div>
+                </div>
+
+                <div style="overflow-x: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>วัน - เวลา</th>
+                                <th>ชื่อ - นามสกุล</th>
+                                <th>ผู้ปกครอง/รหัสนักศึกษา</th>
+                                <th>ผู้สมัคร</th>
+                                <th>จำนวนเงิน</th>
+                                <th>รูปสลิป</th>
+                                <th>สถานะ</th>
+                                <th>การจัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="logsTable"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal ป๊อปอัปโหวต -->
+    <div id="voteModal" class="modal">
+        <div class="modal-content">
+            <h3 id="modalTargetName" style="margin-top:0; color: var(--gold-primary); font-size: 22px;">โหวตให้...</h3>
+            
+            <div class="input-group">
+                <label style="display: block; color: #fbbf24; font-weight: 700; margin-bottom: 8px; text-align: center; font-size: 0.95rem;">
+                    เลือกจำนวนเงินโหวต (บาท)
+                </label>
+
+                <div class="amount-btn-group">
+                    <button type="button" class="amount-btn active" id="btn-10" onclick="selectVoteAmount(10)">10</button>
+                    <button type="button" class="amount-btn" id="btn-50" onclick="selectVoteAmount(50)">50</button>
+                    <button type="button" class="amount-btn" id="btn-100" onclick="selectVoteAmount(100)">100</button>
+                </div>
+
+                <div style="text-align: center; margin-bottom: 8px;">
+                    <div style="display: inline-block; padding: 6px; background: #fff; border-radius: 12px; box-shadow: 0 0 12px rgba(245, 158, 11, 0.3); border: 2px solid #fbbf24;">
+                        <img id="qrCodeImage" src="qrImages/10.jpg" alt="QR Code" style="width: 140px; height: 140px; display: block; border-radius: 6px; object-fit: contain;">
+                    </div>
+                    <div id="scoreDetailText" style="color: #fde047; font-size: 0.95rem; font-weight: 600; margin-top: 6px;">
+                        10 คะแนน
+                    </div>
+                </div>
+
+                <div style="text-align: center; margin-bottom: 10px;">
+                    <div style="display: inline-block; padding: 4px 16px; border: 1px solid rgba(245, 158, 11, 0.4); border-radius: 20px; background: rgba(15, 23, 42, 0.6); color: #fbbf24; font-size: 0.85rem; font-weight: 600;">
+                        ⏱ เวลาที่เหลือ: <span id="timerDisplay">05:00</span> นาที
+                    </div>
+                </div>
+
+                <input type="hidden" id="voteAmount" name="amount" value="10">
+            </div>
+
+            <div class="input-group">
+                <label>แนบสลิปโอนเงิน (เฉพาะ .jpg, .png):</label>
+                <input type="file" id="slipInput" accept="image/png, image/jpeg, image/jpg">
+            </div>
+            <button class="btn" style="background: linear-gradient(135deg, #22c55e, #15803d); border-color: #86efac; color: white;" onclick="submitVote()">ยืนยันส่งสลิปโหวต</button>
+            <button class="btn" style="background: transparent; border: none; color: #94a3b8; margin-top: 10px; box-shadow: none;" onclick="closeVoteModal()">ยกเลิก</button>
+        </div>
+    </div>
+
+    <!-- Star Space Canvas Animation -->
+    <script>
+        (function initAnimatedSpaceBG() {
+            const canvas = document.getElementById('bg-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+
+            let width = canvas.width = window.innerWidth;
+            let height = canvas.height = window.innerHeight;
+
+            let mouse = { x: width / 2, y: height / 2, targetX: width / 2, targetY: height / 2 };
+
+            function updateDimensions() {
+                width = canvas.width = window.innerWidth;
+                height = canvas.height = window.innerHeight;
+            }
+
+            window.addEventListener('resize', updateDimensions);
+            window.addEventListener('orientationchange', updateDimensions);
+
+            function handleMove(clientX, clientY) {
+                mouse.targetX = clientX;
+                mouse.targetY = clientY;
+            }
+
+            window.addEventListener('mousemove', (e) => handleMove(e.clientX, e.clientY));
+            window.addEventListener('touchmove', (e) => {
+                if (e.touches.length > 0) {
+                    handleMove(e.touches[0].clientX, e.touches[0].clientY);
+                }
+            }, { passive: true });
+
+            const isMobile = width < 768;
+            const starCount = isMobile ? 80 : 150;
+            const particles = [];
+
+            for (let i = 0; i < starCount; i++) {
+                particles.push({
+                    x: Math.random() * width,
+                    y: Math.random() * height,
+                    radius: Math.random() * (isMobile ? 1.8 : 2.2) + 0.5,
+                    color: Math.random() > 0.4 ? 'rgba(253, 224, 71, ' : 'rgba(255, 255, 255, ',
+                    alpha: Math.random(),
+                    speedAlpha: Math.random() * 0.02 + 0.005,
+                    vx: (Math.random() - 0.5) * 0.3,
+                    vy: (Math.random() - 0.5) * 0.3 - 0.25,
+                    pulse: Math.random() * Math.PI
+                });
+            }
+
+            let ringRotation = 0;
+            let autoPulseTime = 0;
+
+            function draw() {
+                autoPulseTime += 0.015;
+
+                const autoOffsetX = Math.sin(autoPulseTime) * (isMobile ? 15 : 0);
+                const autoOffsetY = Math.cos(autoPulseTime * 0.8) * (isMobile ? 10 : 0);
+
+                mouse.x += (mouse.targetX + autoOffsetX - mouse.x) * 0.05;
+                mouse.y += (mouse.targetY + autoOffsetY - mouse.y) * 0.05;
+
+                ctx.clearRect(0, 0, width, height);
+
+                const bgGrad = ctx.createRadialGradient(
+                    width * 0.5 + (mouse.x - width / 2) * 0.08, 
+                    height * 0.45 + (mouse.y - height / 2) * 0.08, 
+                    30, 
+                    width * 0.5, 
+                    height * 0.5, 
+                    Math.max(width, height) * 0.85
+                );
+                bgGrad.addColorStop(0, '#1e0c3e');
+                bgGrad.addColorStop(0.35, '#0f0728');
+                bgGrad.addColorStop(0.75, '#06020c');
+                bgGrad.addColorStop(1, '#020005');
+
+                ctx.fillStyle = bgGrad;
+                ctx.fillRect(0, 0, width, height);
+
+                ctx.save();
+                ctx.translate(width / 2 + (mouse.x - width / 2) * 0.03, height * 0.48 + (mouse.y - height / 2) * 0.03);
+                ctx.rotate(ringRotation);
+                ringRotation += 0.0018;
+
+                const ringRadius = isMobile ? 170 : 260;
+                const ringGrad = ctx.createRadialGradient(0, 0, ringRadius * 0.7, 0, 0, ringRadius * 1.1);
+                ringGrad.addColorStop(0, 'rgba(245, 158, 11, 0)');
+                ringGrad.addColorStop(0.5, 'rgba(253, 224, 71, 0.18)');
+                ringGrad.addColorStop(1, 'rgba(245, 158, 11, 0)');
+
+                ctx.beginPath();
+                ctx.scale(1.8, 0.45);
+                ctx.arc(0, 0, ringRadius, 0, Math.PI * 2);
+                ctx.fillStyle = ringGrad;
+                ctx.fill();
+                ctx.restore();
+
+                particles.forEach(p => {
+                    p.pulse += p.speedAlpha;
+                    p.x += p.vx;
+                    p.y += p.vy;
+
+                    if (p.y < 0) p.y = height;
+                    if (p.x < 0) p.x = width;
+                    if (p.x > width) p.x = 0;
+
+                    const currentAlpha = Math.abs(Math.sin(p.pulse));
+
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = p.color + currentAlpha + ')';
+                    
+                    ctx.shadowBlur = p.radius * 3;
+                    ctx.shadowColor = p.color + '0.8)';
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+                });
+
+                requestAnimationFrame(draw);
+            }
+
+            draw();
+        })();
+    </script>
+
+    <!-- Application Logic Script -->
+    <script>
+        Chart.register(ChartDataLabels);
+
+        const candidates = [
+            { id: 1, code: 'B01', name: 'โดนัท', image: '/images/B01.jpg' },
+            { id: 2, code: 'B02', name: 'โต', image: '/images/B02.jpg' },
+            { id: 3, code: 'B03', name: 'ฟลุ๊ค', image: '/images/B03.jpg' },
+            { id: 4, code: 'B04', name: 'ภัทร', image: '/images/B04.jpg' },
+            { id: 5, code: 'B05', name: 'จีโน่', image: '/images/B05.jpg' },
+            { id: 6, code: 'B06', name: 'บิว', image: '/images/B06.jpg' },
+            { id: 7, code: 'B07', name: 'บูม', image: '/images/B07.jpg' },
+            { id: 8, code: 'B08', name: 'มิวสิค', image: '/images/B08.jpg' },
+            { id: 9, code: 'B09', name: 'ตี๋', image: '/images/B09.jpg' },
+            { id: 10, code: 'B10', name: 'โฟกัส', image: '/images/B10.jpg' },
+            { id: 11, code: 'B11', name: 'บีม', image: '/images/B11.jpg' },
+            { id: 12, code: 'B12', name: 'บูม', image: '/images/B12.jpg' },
+            { id: 13, code: 'B13', name: 'โอลี่', image: '/images/B13.jpg' },
+            { id: 14, code: 'B14', name: 'เป๊ก', image: '/images/B14.jpg' },
+            { id: 15, code: 'B15', name: 'ออม', image: '/images/B15.jpg' },
+            { id: 16, code: 'B16', name: 'โฬม', image: '/images/B16.jpg' },
+            { id: 17, code: 'B17', name: 'โฟกัส', image: '/images/B17.jpg' },
+            { id: 18, code: 'B18', name: 'บอส', image: '/images/B18.jpg' },
+            { id: 19, code: 'G01', name: 'ไข่มุก', image: '/images/G01.jpg' },
+            { id: 20, code: 'G02', name: 'โมจิ', image: '/images/G02.jpg' },
+            { id: 21, code: 'G03', name: 'น้ำอิง', image: '/images/G03.jpg' },
+            { id: 22, code: 'G04', name: 'ซากีนะ', image: '/images/G04.jpg' },
+            { id: 23, code: 'G05', name: 'ครีม', image: '/images/G05.jpg' },
+            { id: 24, code: 'G06', name: 'ไหม', image: '/images/G06.jpg' },
+            { id: 25, code: 'G07', name: 'ไข่มุก', image: '/images/G07.jpg' },
+            { id: 26, code: 'G08', name: 'แพรวา', image: '/images/G08.jpg' },
+            { id: 27, code: 'G09', name: 'ใบมิ้น', image: '/images/G09.jpg' },
+            { id: 28, code: 'G010', name: 'บูม', image: '/images/G10.jpg' },
+            { id: 29, code: 'G11', name: 'อั้ม', image: '/images/G11.jpg' },
+            { id: 30, code: 'G12', name: 'ชมพู่', image: '/images/G12.jpg' },
+            { id: 31, code: 'G13', name: 'หญิง', image: '/images/G13.jpg' },
+            { id: 32, code: 'G14', name: 'การ์ตูน', image: '/images/G14.jpg' },
+            { id: 33, code: 'G15', name: 'น้ำชา', image: '/images/G15.jpg' },
+            { id: 34, code: 'G16', name: 'ซูพรีม', image: '/images/G16.jpg' },
+            { id: 35, code: 'G17', name: 'พลอยใส', image: '/images/G17.jpg' },
+            { id: 36, code: 'G18', name: 'แต้ม', image: '/images/G18.jpg' }
+        ];
+
+        const socket = io();
+        let currentUser = null;
+        let selectedCandidateId = null;
+        let chartB = null;
+        let chartG = null;
+        let isAdminLoggedIn = false;
+        let globalVotingStatus = true;
+        let voteTimer = null;
+        let timeLeft = 300;
+        let currentGenderFilter = 'ALL';
+        let latestScores = {};
+
+        /* ===================================================
+           ฟังก์ชันสำหรับระบบ Filter & Search ในหน้าสรุปผล (Admin)
+           =================================================== */
+        let currentSummaryCategory = 'ALL';
+
+        function setSummaryFilter(category) {
+            currentSummaryCategory = category;
+            
+            document.querySelectorAll('.summary-filter-btn').forEach(btn => btn.classList.remove('active'));
+            if (category === 'ALL') document.getElementById('btnFilterAll')?.classList.add('active');
+            if (category === 'MALE') document.getElementById('btnFilterMale')?.classList.add('active');
+            if (category === 'FEMALE') document.getElementById('btnFilterFemale')?.classList.add('active');
+
+            filterSummaryCandidates();
+        }
+
+        function filterSummaryCandidates() {
+            const searchVal = (document.getElementById('summarySearchInput')?.value || '').toLowerCase().trim();
+            
+            const maleSection = document.getElementById('maleSummarySection');
+            const femaleSection = document.getElementById('femaleSummarySection');
+
+            if (maleSection) maleSection.style.display = (currentSummaryCategory === 'FEMALE') ? 'none' : 'block';
+            if (femaleSection) femaleSection.style.display = (currentSummaryCategory === 'MALE') ? 'none' : 'block';
+
+            document.querySelectorAll('.candidate-card-item').forEach(card => {
+                const name = card.getAttribute('data-name') || '';
+                const code = card.getAttribute('data-code') || '';
+                const isMatch = name.toLowerCase().includes(searchVal) || code.toLowerCase().includes(searchVal);
+                
+                card.style.display = isMatch ? 'flex' : 'none';
+            });
+        }
+
+        function toggleRules() {
+            const btn = document.getElementById('rulesToggleBtn');
+            const container = document.getElementById('rulesContainer');
+            btn.classList.toggle('active');
+            container.classList.toggle('open');
+        }
+
+        function toggleStudentIdInput() {
+            const role = document.getElementById('userRole').value;
+            const studentGroup = document.getElementById('studentIdGroup');
+            if (role === 'parent') {
+                studentGroup.style.display = 'none';
+                document.getElementById('studentId').value = '';
+            } else {
+                studentGroup.style.display = 'block';
+            }
+        }
+
+        function createGridHTML(list) {
+            let html = '<div class="candidates-grid">';
+            list.forEach(c => {
+                const imgPath = c.image || 'https://via.placeholder.com/300x400?text=No+Image';
+
+                html += `
+                    <div class="card" onclick="openVoteModal(${c.id}, '${c.code} ${c.name}')">
+                        <div>
+                            <div class="candidate-img-box">
+                                <img src="${imgPath}" alt="${c.name}" class="candidate-img" onerror="this.src='https://via.placeholder.com/300x400?text=No+Image'">
+                            </div>
+
+                            <h3 class="candidate-title" style="margin-bottom: 16px;">${c.code} ${c.name}</h3>
+                        </div>
+                        <button class="btn vote-btn" onclick="event.stopPropagation(); openVoteModal(${c.id}, '${c.code} ${c.name}')">โหวต</button>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            return html;
+        }
+
+        function renderCandidateCards(listToRender = candidates) {
+            const container = document.getElementById('voteContainer');
+            container.innerHTML = '';
+
+            if (currentGenderFilter === 'ALL') {
+                const listB = listToRender.filter(c => c.code.startsWith('B'));
+                const listG = listToRender.filter(c => c.code.startsWith('G'));
+
+                if (listB.length > 0) {
+                    container.innerHTML += `<div class="group-header-title">👦🏻 ผู้สมัครฝ่ายชาย (B)</div>`;
+                    container.innerHTML += createGridHTML(listB);
+                }
+                if (listG.length > 0) {
+                    container.innerHTML += `<div class="group-header-title">👩🏻 ผู้สมัครฝ่ายหญิง (G)</div>`;
+                    container.innerHTML += createGridHTML(listG);
+                }
+            } else {
+                const title = currentGenderFilter === 'B' ? '👦🏻 ผู้สมัครฝ่ายชาย (B)' : '👩🏻 ผู้สมัครฝ่ายหญิง (G)';
+                container.innerHTML += `<div class="group-header-title">${title}</div>`;
+                container.innerHTML += createGridHTML(listToRender);
+            }
+            applyVotingStatusUI();
+        }
+
+        function filterCandidates() {
+            const query = document.getElementById('searchInput').value.toLowerCase().trim();
+            const filtered = candidates.filter(c => {
+                const matchesGender = currentGenderFilter === 'ALL' || c.code.startsWith(currentGenderFilter);
+                const matchesSearch = c.name.toLowerCase().includes(query) || c.code.toLowerCase().includes(query);
+                return matchesGender && matchesSearch;
+            });
+            renderCandidateCards(filtered);
+        }
+
+        function filterGender(gender, evt) {
+            currentGenderFilter = gender;
+            document.querySelectorAll('.vote-header .filter-btn').forEach(btn => btn.classList.remove('active'));
+            if (evt && evt.target) evt.target.classList.add('active');
+            filterCandidates();
+        }
+
+        renderCandidateCards();
+
+        function switchTab(tabName) {
+            if (tabName === 'summary') {
+                if (!isAdminLoggedIn) {
+                    document.getElementById('summaryLockSection').style.display = 'block';
+                    document.getElementById('summaryContentSection').style.display = 'none';
+                } else {
+                    document.getElementById('summaryLockSection').style.display = 'none';
+                    document.getElementById('summaryContentSection').style.display = 'block';
+                    renderSummary();
+                }
+            }
+
+            document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-btns button').forEach(el => el.classList.remove('active'));
+            document.getElementById('tab-' + tabName).classList.add('active');
+            document.getElementById('nav-' + tabName).classList.add('active');
+
+            if (tabName === 'chart') {
+                if (!chartB || !chartG) {
+                    initChart();
+                } else {
+                    chartB.update();
+                    chartG.update();
+                }
+            }
+        }
+
+        function renderSummary() {
+            const summaryGrid = document.getElementById('summaryGrid');
+            if (!summaryGrid) return;
+
+            const allWithScores = candidates.map(c => ({
+                ...c,
+                score: latestScores[c.id] || latestScores[String(c.id)] || 0
+            }));
+
+            const sortedMale = allWithScores
+                .filter(c => c.code.startsWith('B'))
+                .sort((a, b) => b.score - a.score);
+
+            const sortedFemale = allWithScores
+                .filter(c => c.code.startsWith('G'))
+                .sort((a, b) => b.score - a.score);
+
+            const createCardsHTML = (list) => {
+                return list.map((c, index) => {
+                    const rank = index + 1;
+                    const imgPath = c.image || 'https://via.placeholder.com/300x400?text=No+Image';
+                    
+                    let rankBadge = `<div style="font-size: 1.1rem; font-weight: 800; color: #cbd5e1;">อันดับที่ ${rank}</div>`;
+                    let cardBg = 'rgba(20, 12, 38, 0.75)';
+                    let borderColor = 'rgba(245, 158, 11, 0.3)';
+
+                    if (rank === 1) {
+                        rankBadge = `<div style="font-size: 1.2rem; font-weight: 900; color: #fde047;">👑 อันดับที่ 1</div>`;
+                        cardBg = 'rgba(245, 158, 11, 0.2)';
+                        borderColor = '#fde047';
+                    } else if (rank === 2) {
+                        rankBadge = `<div style="font-size: 1.1rem; font-weight: 800; color: #e2e8f0;">🥈 อันดับที่ 2</div>`;
+                    } else if (rank === 3) {
+                        rankBadge = `<div style="font-size: 1.1rem; font-weight: 800; color: #cbd5e1;">🥉 อันดับที่ 3</div>`;
+                    }
+
+                    return `
+                        <div class="card candidate-card-item" data-name="${c.name}" data-code="${c.code}" style="border-color: ${borderColor}; background: ${cardBg}; cursor: default; padding: 16px;">
+                            ${rankBadge}
+                            <div class="candidate-img-box" style="height: 180px; margin: 8px 0;">
+                                <img src="${imgPath}" class="candidate-img" onerror="this.src='https://via.placeholder.com/300x400?text=No+Image'">
+                            </div>
+                            <h3 class="candidate-title" style="font-size: 1.2rem; margin: 4px 0;">${c.code} ${c.name}</h3>
+                            <div class="score-num" style="font-size: 1.8rem; margin: 4px 0;">${c.score.toLocaleString()} <span style="font-size: 0.9rem;">คะแนน</span></div>
+                        </div>
+                    `;
+                }).join('');
+            };
+
+            summaryGrid.style.display = 'block';
+            summaryGrid.style.maxWidth = '1200px';
+
+            summaryGrid.innerHTML = `
+                <div style="max-width: 600px; margin: 0 auto 30px auto; display: flex; flex-direction: column; align-items: center; gap: 16px;">
+                    <input type="text" id="summarySearchInput" placeholder="ค้นหาทำไมก็เลื่อนเอาสิ •ω•" 
+                        oninput="filterSummaryCandidates()"
+                        style="width: 100%; padding: 12px 24px; border-radius: 9999px; border: none; background: #f1f5f9; color: #1e293b; font-size: 1rem; outline: none; box-shadow: 0 4px 12px rgba(0,0,0,0.3); text-align: center;">
+                    
+                    <div style="display: flex; gap: 12px; justify-content: center;">
+                        <button onclick="setSummaryFilter('ALL')" id="btnFilterAll" class="summary-filter-btn active">ทั้งหมด</button>
+                        <button onclick="setSummaryFilter('MALE')" id="btnFilterMale" class="summary-filter-btn">MALE</button>
+                        <button onclick="setSummaryFilter('FEMALE')" id="btnFilterFemale" class="summary-filter-btn">FEMALE</button>
+                    </div>
+                </div>
+
+                <div id="maleSummarySection" style="margin-bottom: 40px;">
+                    <div class="group-header-title">👦🏻 สรุปผลคะแนนผู้สมัครฝ่ายชาย (MALE)</div>
+                    <div class="candidates-grid">
+                        ${createCardsHTML(sortedMale)}
+                    </div>
+                </div>
+
+                <div id="femaleSummarySection">
+                    <div class="group-header-title">👩🏻 สรุปผลคะแนนผู้สมัครฝ่ายหญิง (FEMALE)</div>
+                    <div class="candidates-grid">
+                        ${createCardsHTML(sortedFemale)}
+                    </div>
+                </div>
+            `;
+
+            // ดำเนินการ Re-apply Filter สรุปผลปัจจุบันทันทีหลัง Render
+            filterSummaryCandidates();
+        }
+
+        function createChartConfig(candidatesList) {
+            return {
+                type: 'bar',
+                data: {
+                    labels: candidatesList.map(c => c.code),
+                    datasets: [{
+                        data: candidatesList.map(() => 0),
+                        backgroundColor: '#f59e0b',
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { 
+                        legend: { display: false },
+                        datalabels: {
+                            anchor: 'end', align: 'end', color: '#ffffff',
+                            font: { family: 'Kanit', size: 11, weight: 'bold' },
+                            formatter: (val) => val > 0 ? val : ''
+                        }
+                    },
+                    scales: {
+                        x: { ticks: { color: '#ffffff', font: { family: 'Kanit', size: 11 } }, grid: { display: false } },
+                        y: { beginAtZero: true, ticks: { color: '#cbd5e1' }, grid: { color: 'rgba(255,255,255,0.05)' } }
+                    }
+                }
+            };
+        }
+
+        function initChart() {
+            const groupB = candidates.filter(c => c.code.startsWith('B'));
+            const groupG = candidates.filter(c => c.code.startsWith('G'));
+            chartB = new Chart(document.getElementById('chartB').getContext('2d'), createChartConfig(groupB));
+            chartG = new Chart(document.getElementById('chartG').getContext('2d'), createChartConfig(groupG));
+            fetch('/api/scores').then(res => res.json()).then(data => updateScoresUI(data));
+        }
+
+        function applyVotingStatusUI() {
+            const banner = document.getElementById('closedBanner');
+            const voteBtns = document.querySelectorAll('.vote-btn');
+            const toggleAdminBtn = document.getElementById('toggleVoteBtn');
+
+            if (globalVotingStatus) {
+                banner.style.display = 'none';
+                voteBtns.forEach(btn => { btn.disabled = false; btn.innerText = 'โหวต'; });
+                if (toggleAdminBtn) { toggleAdminBtn.style.background = '#22c55e'; toggleAdminBtn.innerText = '🟢 เปิดโหวตอยู่ (คลิกเพื่อปิด)'; }
+            } else {
+                banner.style.display = 'block';
+                voteBtns.forEach(btn => { btn.disabled = true; btn.innerText = 'ปิดโหวต'; });
+                if (toggleAdminBtn) { toggleAdminBtn.style.background = '#ef4444'; toggleAdminBtn.innerText = '🔴 ปิดโหวตอยู่ (คลิกเพื่อเปิด)'; }
+            }
+        }
+
+        function updateScoresUI(data) {
+            if (!data) return;
+            if (data.isVotingOpen !== undefined) { globalVotingStatus = data.isVotingOpen; applyVotingStatusUI(); }
+
+            const scoresMap = data.scores || data;
+            latestScores = scoresMap;
+
+            if (chartB) {
+                chartB.data.datasets[0].data = candidates.filter(c => c.code.startsWith('B')).map(c => scoresMap[c.id] || 0);
+                chartB.update();
+            }
+            if (chartG) {
+                chartG.data.datasets[0].data = candidates.filter(c => c.code.startsWith('G')).map(c => scoresMap[c.id] || 0);
+                chartG.update();
+            }
+
+            if (isAdminLoggedIn) {
+                renderSummary();
+                if (data.logs) renderLogs(data.logs);
+            }
+        }
+
+        socket.on('voteUpdate', (data) => updateScoresUI(data));
+        socket.on('statusUpdate', (data) => { globalVotingStatus = data.isVotingOpen; applyVotingStatusUI(); });
+        socket.on('adminLogsUpdate', (logs) => { if (isAdminLoggedIn) renderLogs(logs); });
+        socket.on('summaryUpdate', (data) => {
+            if (data && data.sortedSummary) {
+                data.sortedSummary.forEach(item => {
+                    latestScores[item.candidateId] = item.totalVotes;
+                });
+                if (isAdminLoggedIn) renderSummary();
+            }
+        });
+
+        fetch('/api/scores').then(res => res.json()).then(data => updateScoresUI(data));
+
+        function startVoteTimer() {
+            if (voteTimer) clearInterval(voteTimer);
+            timeLeft = 300; updateTimerDisplay();
+            voteTimer = setInterval(() => {
+                timeLeft--; updateTimerDisplay();
+                if (timeLeft <= 0) { clearInterval(voteTimer); alert('หมดเวลาการโหวต 5 นาที'); closeVoteModal(); }
+            }, 1000);
+        }
+
+        function stopVoteTimer() { if (voteTimer) clearInterval(voteTimer); }
+        function updateTimerDisplay() {
+            const m = String(Math.floor(timeLeft / 60)).padStart(2, '0');
+            const s = String(timeLeft % 60).padStart(2, '0');
+            const timerElem = document.getElementById('timerDisplay');
+            if (timerElem) timerElem.innerText = `${m}:${s}`;
+        }
+
+        function login() {
+            const role = document.getElementById('userRole').value;
+            const fullname = document.getElementById('fullname').value.trim();
+            const studentId = document.getElementById('studentId').value.trim();
+            const phone = document.getElementById('phone').value.trim();
+
+            if (!fullname || !phone) return alert('กรุณากรอกข้อมูลให้ครบถ้วน');
+            if (phone.length !== 10) return alert('กรุณากรอกเบอร์โทรศัพท์ 10 หลัก');
+            if (role === 'student' && studentId.length < 9) return alert('รหัสนักศึกษาไม่ถูกต้อง');
+
+            const displayId = role === 'student' ? studentId : 'ผู้ปกครอง';
+            currentUser = { fullname, studentId: displayId, phone, role };
+            document.getElementById('userDisplay').innerText = `${fullname} (${displayId})`;
+            document.getElementById('loginSection').style.display = 'none';
+            document.getElementById('voteSection').style.display = 'block';
+        }
+
+        function selectVoteAmount(amount) {
+            document.getElementById('voteAmount').value = amount;
+            
+            document.querySelectorAll('.amount-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`btn-${amount}`).classList.add('active');
+
+            document.getElementById('qrCodeImage').src = `qrImages/${amount}.jpg`;
+
+            const textElem = document.getElementById('scoreDetailText');
+            if (amount === 10) {
+                textElem.innerText = '10 คะแนน';
+            } else if (amount === 50) {
+                textElem.innerText = '50 คะแนน (แถมฟรี 15 คะแนน)';
+            } else if (amount === 100) {
+                textElem.innerText = '100 คะแนน (แถมฟรี 50 คะแนน)';
+            }
+        }
+
+        function openVoteModal(id, name) {
+            if (!globalVotingStatus) return alert('ระบบปิดรับการโหวตชั่วคราว');
+            if (!currentUser) return alert('กรุณาเข้าสู่ระบบก่อน');
+            selectedCandidateId = id;
+
+            const candidate = candidates.find(c => c.id === id);
+            const imgPath = (candidate && candidate.image) ? candidate.image : '';
+
+            document.getElementById('modalTargetName').innerHTML = `
+                ${imgPath ? `<img src="${imgPath}" style="width:75px; height:75px; border-radius:50%; object-fit:cover; margin-bottom:8px; border:2px solid var(--gold-primary);" onerror="this.style.display='none'"><br>` : ''}
+                โหวตให้: ${name}
+            `;
+
+            selectVoteAmount(10);
+
+            document.getElementById('voteModal').style.display = 'flex';
+            startVoteTimer();
+        }
+
+        function closeVoteModal() {
+            stopVoteTimer();
+            document.getElementById('voteModal').style.display = 'none';
+            document.getElementById('slipInput').value = '';
+        }
+
+        async function submitVote() {
+            const amount = document.getElementById('voteAmount').value;
+            const slipFile = document.getElementById('slipInput').files[0];
+
+            if (!globalVotingStatus || !currentUser) return;
+            if (!slipFile) return alert('กรุณาแนบไฟล์สลิป');
+            if (!amount || amount <= 0) return alert('กรุณากรอกจำนวนเงินให้ถูกต้อง');
+
+            const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg'];
+            if (!allowedTypes.includes(slipFile.type)) {
+                return alert('รองรับเฉพาะไฟล์รูปภาพ .jpg หรือ .png เท่านั้น');
+            }
+
+            const formData = new FormData();
+            formData.append('fullname', currentUser.fullname);
+            formData.append('studentId', currentUser.studentId);
+            formData.append('phone', currentUser.phone);
+            formData.append('candidateId', selectedCandidateId);
+            formData.append('amount', amount);
+            formData.append('slip', slipFile);
+
+            try {
+                const res = await fetch('/api/vote', { method: 'POST', body: formData });
+                const result = await res.json();
+                if (result.success) {
+                    alert(result.message || 'ส่งสลิปโหวตเรียบร้อยแล้ว รอการอนุมัติ');
+                    closeVoteModal();
+                } else {
+                    alert(result.message || 'เกิดข้อผิดพลาดในการลงคะแนน');
+                }
+            } catch (err) {
+                alert('เกิดข้อผิดพลาดในการเชื่อมต่อเซิร์ฟเวอร์');
+            }
+        }
+
+        async function loginAdmin() {
+            const password = document.getElementById('adminPassword').value;
+            if (!password) return alert('กรุณากรอกรหัสผ่าน');
+
+            try {
+                const res = await fetch('/api/admin/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    isAdminLoggedIn = true;
+                    document.getElementById('adminPassSection').style.display = 'none';
+                    document.getElementById('adminDataSection').style.display = 'block';
+                    
+                    document.getElementById('summaryLockSection').style.display = 'none';
+                    document.getElementById('summaryContentSection').style.display = 'block';
+                    renderSummary();
+
+                    applyVotingStatusUI();
+                    if (data.logs) renderLogs(data.logs);
+                } else {
+                    alert(data.message || 'รหัสผ่าน Admin ไม่ถูกต้อง!');
+                }
+            } catch (err) {
+                alert('เกิดข้อผิดพลาดในการเชื่อมต่อกับระบบ Admin');
+            }
+        }
+
+        function logoutAdmin() {
+            isAdminLoggedIn = false;
+            document.getElementById('adminPassword').value = '';
+            document.getElementById('adminPassSection').style.display = 'block';
+            document.getElementById('adminDataSection').style.display = 'none';
+
+            document.getElementById('summaryLockSection').style.display = 'block';
+            document.getElementById('summaryContentSection').style.display = 'none';
+        }
+
+        async function toggleVotingSystem() {
+            try {
+                const res = await fetch('/api/admin/toggle-vote', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ open: !globalVotingStatus })
+                });
+                const data = await res.json();
+                if (data.success) { globalVotingStatus = data.isVotingOpen; applyVotingStatusUI(); }
+            } catch (err) { alert('เปลี่ยนสถานะไม่สำเร็จ'); }
+        }
+
+        async function verifyVote(voteId, status) {
+            try {
+                const res = await fetch('/api/admin/verify-vote', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ voteId, status })
+                });
+                const data = await res.json();
+                if (!data.success) alert(data.message);
+            } catch (err) {
+                alert('เกิดข้อผิดพลาดในการอัปเดตสถานะ');
+            }
+        }
+
+        function renderLogs(logs) {
+            const tableBody = document.getElementById('logsTable');
+            tableBody.innerHTML = '';
+            if (!logs || logs.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:#94a3b8;">ยังไม่มีรายการโหวต</td></tr>`;
+                return;
+            }
+
+            logs.forEach(log => {
+                const targetCandidate = candidates.find(c => c.id === Number(log.candidateId));
+                const candidateLabel = targetCandidate ? `${targetCandidate.code} ${targetCandidate.name}` : `เบอร์ ${log.candidateId}`;
+
+                let statusBadge = '<span class="status-pending">⏳ รอตรวจ</span>';
+                if (log.status === 'approved') statusBadge = '<span class="status-approved">✅ อนุมัติแล้ว</span>';
+                if (log.status === 'rejected') statusBadge = '<span class="status-rejected">❌ ปฏิเสธ</span>';
+
+                const slipBtn = log.slipUrl 
+                    ? `<a href="${log.slipUrl}" target="_blank" style="color:#60a5fa; text-decoration:underline;">เปิดรูปสลิป</a>` 
+                    : '-';
+
+                const actionBtns = log.status === 'pending'
+                    ? `<button class="btn-approve" onclick="verifyVote(${log.id}, 'approved')">อนุมัติ</button>
+                       <button class="btn-reject" onclick="verifyVote(${log.id}, 'rejected')">ปฏิเสธ</button>`
+                    : '-';
+
+                tableBody.innerHTML += `
+                    <tr>
+                        <td>${log.timestamp}</td>
+                        <td><strong>${log.fullname || '-'}</strong></td>
+                        <td>${log.studentId}</td>
+                        <td><span class="badge">${candidateLabel}</span></td>
+                        <td><strong style="color: #4ade80;">+${log.amount} ฿</strong></td>
+                        <td>${slipBtn}</td>
+                        <td>${statusBadge}</td>
+                        <td>${actionBtns}</td>
+                    </tr>
+                `;
+            });
+        }
+    </script>
+</body>
+</html>
