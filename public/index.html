@@ -1324,7 +1324,8 @@
             document.querySelectorAll('.amount-btn').forEach(btn => btn.classList.remove('active'));
             document.getElementById(`btn-${amount}`).classList.add('active');
 
-            document.getElementById('qrCodeImage').src = `qrImages/${amount}.jpg`;
+            // เพิ่ม Query Parameter ?v=timestamp เพื่อป้องกันปัญหา Cache ค้าง
+            document.getElementById('qrCodeImage').src = `/qrImages/${amount}.jpg?v=${Date.now()}`;
 
             const textElem = document.getElementById('scoreDetailText');
             if (amount === 10) {
