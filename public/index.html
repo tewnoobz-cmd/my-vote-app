@@ -651,6 +651,8 @@
                                 <li>ระบบจะทำการตรวจสอบสลิปย้อนหลังโดยผู้ดูแลระบบ (Admin)</li>
                                 <li>ผู้ที่มีคะแนนโหวตสูงสุดในแต่ละประเภทจะได้รับรางวัลขวัญใจ KPRU</li>
                                 <li>เปิดรับโหวตถึงเวลาตามที่คณะกรรมการจัดงานกำหนดเท่านั้น</li>
+                                <li>ผลคะแนนอัพเดทเวลา 09:00 - 20:00 น.</li>
+                                <li>หลังจากเวลา 20:00 น. จะอัพเดทในวันถัดไป</li>
                             </ul>
                         </div>
                     </div>
@@ -943,7 +945,7 @@
             { id: 25, code: 'G07', name: 'ไข่มุก', image: '/images/G07.jpg' },
             { id: 26, code: 'G08', name: 'แพรวา', image: '/images/G08.jpg' },
             { id: 27, code: 'G09', name: 'ใบมิ้น', image: '/images/G09.jpg' },
-            { id: 28, code: 'G010', name: 'บูม', image: '/images/G10.jpg' },
+            { id: 28, code: 'G10', name: 'บูม', image: '/images/G10.jpg' },
             { id: 29, code: 'G11', name: 'อั้ม', image: '/images/G11.jpg' },
             { id: 30, code: 'G12', name: 'ชมพู่', image: '/images/G12.jpg' },
             { id: 31, code: 'G13', name: 'หญิง', image: '/images/G13.jpg' },
@@ -1190,7 +1192,6 @@
                 </div>
             `;
 
-            // ดำเนินการ Re-apply Filter สรุปผลปัจจุบันทันทีหลัง Render
             filterSummaryCandidates();
         }
 
@@ -1239,12 +1240,18 @@
 
             if (globalVotingStatus) {
                 banner.style.display = 'none';
-                voteBtns.forEach(btn => { btn.disabled = false; btn.innerText = 'โหวต'; });
+                voteBtns.forEach(btn => { 
+                    btn.disabled = false; 
+                    btn.innerText = 'โหวต'; 
+                });
                 if (toggleAdminBtn) { toggleAdminBtn.style.background = '#22c55e'; toggleAdminBtn.innerText = '🟢 เปิดโหวตอยู่ (คลิกเพื่อปิด)'; }
             } else {
                 banner.style.display = 'block';
-                voteBtns.forEach(btn => { btn.disabled = true; btn.innerText = 'ปิดโหวต'; });
-                if (toggleAdminBtn) { toggleAdminBtn.style.background = '#ef4444'; toggleAdminBtn.innerText = '🔴 ปิดโหวตอยู่ (คลิกเพื่อเปิด)'; }
+                voteBtns.forEach(btn => { 
+                    btn.disabled = true; 
+                    btn.innerText = 'ปิดโหวต'; 
+                });
+                if (toggleAdminBtn) { toggleAdminBtn.style.background = '#ef4444'; toggleAdminBtn.innerText = '🔴 ปิดโหวตอยู่ (คลิกเพื่อปิด)'; }
             }
         }
 
@@ -1316,6 +1323,9 @@
             document.getElementById('userDisplay').innerText = `${fullname} (${displayId})`;
             document.getElementById('loginSection').style.display = 'none';
             document.getElementById('voteSection').style.display = 'block';
+
+            // ✨ เรียก Render การ์ดอีกครั้งทันทีที่เข้าสู่ระบบ
+            renderCandidateCards();
         }
 
         function selectVoteAmount(amount) {
@@ -1324,7 +1334,6 @@
             document.querySelectorAll('.amount-btn').forEach(btn => btn.classList.remove('active'));
             document.getElementById(`btn-${amount}`).classList.add('active');
 
-            // เพิ่ม Query Parameter ?v=timestamp เพื่อป้องกันปัญหา Cache ค้าง
             document.getElementById('qrCodeImage').src = `/qrImages/${amount}.jpg?v=${Date.now()}`;
 
             const textElem = document.getElementById('scoreDetailText');
