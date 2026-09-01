@@ -611,7 +611,7 @@
                 </div>
                 <div class="input-group">
                     <label>ชื่อ - นามสกุล:</label>
-                    <input type="text" id="fullname" placeholder="เช่น นายนราวิชญ์ มุสิกะพงษ์">
+                    <input type="text" id="fullname" placeholder="กรอกชื่อ-นามสกุล">
                 </div>
                 <div class="input-group" id="studentIdGroup">
                     <label>รหัสนักศึกษา:</label>
@@ -629,7 +629,7 @@
                     <h1 class="main-hero-title">STAR SHINING IN THE SKY</h1>
                     
                     <div class="search-container">
-                        <input type="text" id="searchInput" class="search-input" placeholder="ค้นหาทำไมก็เลื่อนเอาสิ •⩊•" oninput="filterCandidates()">
+                        <input type="text" id="searchInput" class="search-input" placeholder="ค้นหาชื่อ หรือ รหัสผู้สมัคร..." oninput="filterCandidates()">
                     </div>
 
                     <div class="filter-buttons-group">
@@ -665,19 +665,27 @@
             </div>
         </div>
 
-        <!-- แท็บ 2: กราฟผลโหวต -->
+        <!-- แท็บ 2: กราฟผลโหวต (Admin Only) -->
         <div id="tab-chart" class="section">
-            <div class="charts-wrapper">
-                <div class="chart-box">
-                    <h3 style="margin: 0 0 12px 0; color: var(--gold-primary); font-size: 19px; font-weight: 700;">👦🏻 ผู้สมัครกลุ่ม B (MALE)</h3>
-                    <div style="position: relative; height: calc(100% - 40px); width: 100%;">
-                        <canvas id="chartB"></canvas>
+            <div id="chartLockSection" class="box">
+                <h2 style="color: #ffffff; margin-bottom: 15px;">🔒 กราฟผลโหวตเฉพาะ Admin</h2>
+                <p style="color: #cbd5e1; margin-bottom: 20px;">กรุณาล็อกอินเข้าสู่ระบบ Admin เพื่อดูเรอัลไทม์กราฟ</p>
+                <button class="btn" onclick="switchTab('admin')">ไปหน้าเข้าสู่ระบบ Admin</button>
+            </div>
+
+            <div id="chartContentSection" style="display: none;">
+                <div class="charts-wrapper">
+                    <div class="chart-box">
+                        <h3 style="margin: 0 0 12px 0; color: var(--gold-primary); font-size: 19px; font-weight: 700;">👦🏻 ผู้สมัครกลุ่ม B (MALE)</h3>
+                        <div style="position: relative; height: calc(100% - 40px); width: 100%;">
+                            <canvas id="chartB"></canvas>
+                        </div>
                     </div>
-                </div>
-                <div class="chart-box">
-                    <h3 style="margin: 0 0 12px 0; color: var(--gold-primary); font-size: 19px; font-weight: 700;">👩🏻 ผู้สมัครกลุ่ม G (FEMALE)</h3>
-                    <div style="position: relative; height: calc(100% - 40px); width: 100%;">
-                        <canvas id="chartG"></canvas>
+                    <div class="chart-box">
+                        <h3 style="margin: 0 0 12px 0; color: var(--gold-primary); font-size: 19px; font-weight: 700;">👩🏻 ผู้สมัครกลุ่ม G (FEMALE)</h3>
+                        <div style="position: relative; height: calc(100% - 40px); width: 100%;">
+                            <canvas id="chartG"></canvas>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -762,7 +770,7 @@
 
                 <div style="text-align: center; margin-bottom: 8px;">
                     <div style="display: inline-block; padding: 6px; background: #fff; border-radius: 12px; box-shadow: 0 0 12px rgba(245, 158, 11, 0.3); border: 2px solid #fbbf24;">
-                        <img id="qrCodeImage" src="qrImages/10.jpg" alt="QR Code" style="width: 140px; height: 140px; display: block; border-radius: 6px; object-fit: contain;">
+                        <img id="qrCodeImage" src="/qrImages/10.jpg" alt="QR Code" style="width: 140px; height: 140px; display: block; border-radius: 6px; object-fit: contain;">
                     </div>
                     <div id="scoreDetailText" style="color: #fde047; font-size: 0.95rem; font-weight: 600; margin-top: 6px;">
                         10 คะแนน
@@ -967,10 +975,6 @@
         let timeLeft = 300;
         let currentGenderFilter = 'ALL';
         let latestScores = {};
-
-        /* ===================================================
-           ฟังก์ชันสำหรับระบบ Filter & Search ในหน้าสรุปผล (Admin)
-           =================================================== */
         let currentSummaryCategory = 'ALL';
 
         function setSummaryFilter(category) {
@@ -1031,7 +1035,6 @@
                             <div class="candidate-img-box">
                                 <img src="${imgPath}" alt="${c.name}" class="candidate-img" onerror="this.src='https://via.placeholder.com/300x400?text=No+Image'">
                             </div>
-
                             <h3 class="candidate-title" style="margin-bottom: 16px;">${c.code} ${c.name}</h3>
                         </div>
                         <button class="btn vote-btn" onclick="event.stopPropagation(); openVoteModal(${c.id}, '${c.code} ${c.name}')">โหวต</button>
@@ -1086,31 +1089,40 @@
         renderCandidateCards();
 
         function switchTab(tabName) {
-            if (tabName === 'summary') {
-                if (!isAdminLoggedIn) {
-                    document.getElementById('summaryLockSection').style.display = 'block';
-                    document.getElementById('summaryContentSection').style.display = 'none';
-                } else {
-                    document.getElementById('summaryLockSection').style.display = 'none';
-                    document.getElementById('summaryContentSection').style.display = 'block';
-                    renderSummary();
-                }
-            }
+    // เช็กสิทธิ์ Admin สำหรับแท็บ Summary
+    if (tabName === 'summary') {
+        if (!isAdminLoggedIn) {
+            document.getElementById('summaryLockSection').style.display = 'block';
+            document.getElementById('summaryContentSection').style.display = 'none';
+        } else {
+            document.getElementById('summaryLockSection').style.display = 'none';
+            document.getElementById('summaryContentSection').style.display = 'block';
+            renderSummary();
+        }
+    }
 
-            document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('.nav-btns button').forEach(el => el.classList.remove('active'));
-            document.getElementById('tab-' + tabName).classList.add('active');
-            document.getElementById('nav-' + tabName).classList.add('active');
-
-            if (tabName === 'chart') {
-                if (!chartB || !chartG) {
-                    initChart();
-                } else {
-                    chartB.update();
-                    chartG.update();
-                }
+    // เช็กสิทธิ์ Admin สำหรับแท็บ Chart
+    if (tabName === 'chart') {
+        if (!isAdminLoggedIn) {
+            document.getElementById('chartLockSection').style.display = 'block';
+            document.getElementById('chartContentSection').style.display = 'none';
+        } else {
+            document.getElementById('chartLockSection').style.display = 'none';
+            document.getElementById('chartContentSection').style.display = 'block';
+            if (!chartB || !chartG) {
+                initChart();
+            } else {
+                chartB.update();
+                chartG.update();
             }
         }
+    }
+
+    document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.nav-btns button').forEach(el => el.classList.remove('active'));
+    document.getElementById('tab-' + tabName).classList.add('active');
+    document.getElementById('nav-' + tabName).classList.add('active');
+}
 
         function renderSummary() {
             const summaryGrid = document.getElementById('summaryGrid');
@@ -1166,7 +1178,7 @@
 
             summaryGrid.innerHTML = `
                 <div style="max-width: 600px; margin: 0 auto 30px auto; display: flex; flex-direction: column; align-items: center; gap: 16px;">
-                    <input type="text" id="summarySearchInput" placeholder="ค้นหาทำไมก็เลื่อนเอาสิ •ω•" 
+                    <input type="text" id="summarySearchInput" placeholder="ค้นหาชื่อ หรือ รหัสผู้สมัคร..." 
                         oninput="filterSummaryCandidates()"
                         style="width: 100%; padding: 12px 24px; border-radius: 9999px; border: none; background: #f1f5f9; color: #1e293b; font-size: 1rem; outline: none; box-shadow: 0 4px 12px rgba(0,0,0,0.3); text-align: center;">
                     
@@ -1324,7 +1336,6 @@
             document.getElementById('loginSection').style.display = 'none';
             document.getElementById('voteSection').style.display = 'block';
 
-            // ✨ เรียก Render การ์ดอีกครั้งทันทีที่เข้าสู่ระบบ
             renderCandidateCards();
         }
 
@@ -1407,45 +1418,58 @@
         }
 
         async function loginAdmin() {
-            const password = document.getElementById('adminPassword').value;
-            if (!password) return alert('กรุณากรอกรหัสผ่าน');
+    const password = document.getElementById('adminPassword').value;
+    if (!password) return alert('กรุณากรอกรหัสผ่าน');
 
-            try {
-                const res = await fetch('/api/admin/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ password })
-                });
-                const data = await res.json();
+    try {
+        const res = await fetch('/api/admin/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password })
+        });
+        const data = await res.json();
 
-                if (data.success) {
-                    isAdminLoggedIn = true;
-                    document.getElementById('adminPassSection').style.display = 'none';
-                    document.getElementById('adminDataSection').style.display = 'block';
-                    
-                    document.getElementById('summaryLockSection').style.display = 'none';
-                    document.getElementById('summaryContentSection').style.display = 'block';
-                    renderSummary();
+        if (data.success) {
+            isAdminLoggedIn = true;
+            document.getElementById('adminPassSection').style.display = 'none';
+            document.getElementById('adminDataSection').style.display = 'block';
+            
+            // ปลดล็อกหน้า Summary
+            document.getElementById('summaryLockSection').style.display = 'none';
+            document.getElementById('summaryContentSection').style.display = 'block';
+            renderSummary();
 
-                    applyVotingStatusUI();
-                    if (data.logs) renderLogs(data.logs);
-                } else {
-                    alert(data.message || 'รหัสผ่าน Admin ไม่ถูกต้อง!');
-                }
-            } catch (err) {
-                alert('เกิดข้อผิดพลาดในการเชื่อมต่อกับระบบ Admin');
+            // ปลดล็อกหน้า Chart
+            document.getElementById('chartLockSection').style.display = 'none';
+            document.getElementById('chartContentSection').style.display = 'block';
+            if (!chartB || !chartG) {
+                initChart();
             }
-        }
 
-        function logoutAdmin() {
-            isAdminLoggedIn = false;
-            document.getElementById('adminPassword').value = '';
-            document.getElementById('adminPassSection').style.display = 'block';
-            document.getElementById('adminDataSection').style.display = 'none';
-
-            document.getElementById('summaryLockSection').style.display = 'block';
-            document.getElementById('summaryContentSection').style.display = 'none';
+            applyVotingStatusUI();
+            if (data.logs) renderLogs(data.logs);
+        } else {
+            alert(data.message || 'รหัสผ่าน Admin ไม่ถูกต้อง!');
         }
+    } catch (err) {
+        alert('เกิดข้อผิดพลาดในการเชื่อมต่อกับระบบ Admin');
+    }
+}
+
+function logoutAdmin() {
+    isAdminLoggedIn = false;
+    document.getElementById('adminPassword').value = '';
+    document.getElementById('adminPassSection').style.display = 'block';
+    document.getElementById('adminDataSection').style.display = 'none';
+
+    // ล็อกหน้า Summary
+    document.getElementById('summaryLockSection').style.display = 'block';
+    document.getElementById('summaryContentSection').style.display = 'none';
+
+    // ล็อกหน้า Chart
+    document.getElementById('chartLockSection').style.display = 'block';
+    document.getElementById('chartContentSection').style.display = 'none';
+}
 
         async function toggleVotingSystem() {
             try {
