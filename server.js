@@ -18,7 +18,6 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "0000";
 // 1. เชื่อมต่อ MongoDB Atlas
 const MONGO_URI = process.env.MONGO_URI || "mongodb+srv://<USER>:<PASSWORD>@cluster0.xxxx.mongodb.net/kpruVoteDB?retryWrites=true&w=majority";
 
-<<<<<<< HEAD
 // ----------------------------------------------------
 // 1. ฟังก์ชันจัดการฐานข้อมูล & ข้อมูลคะแนน (1-8 คณะ)
 // ----------------------------------------------------
@@ -31,7 +30,7 @@ function saveDatabase() {
     } catch (err) {
       console.error('❌ Failed to save database:', err);
     }
-=======
+
 mongoose.connect(MONGO_URI)
   .then(() => console.log('✅ MongoDB Atlas Connected Successfully!'))
   .catch(err => console.error('❌ MongoDB Connection Error:', err));
@@ -54,7 +53,7 @@ voteSchema.pre('save', async function (next) {
   if (this.isNew && !this.voteId) {
     const lastVote = await this.constructor.findOne().sort({ voteId: -1 });
     this.voteId = lastVote && lastVote.voteId ? lastVote.voteId + 1 : 1;
->>>>>>> aa47367210c1a8303c4ed99d1ba5b091074904b5
+ aa47367210c1a8303c4ed99d1ba5b091074904b5
   }
   next();
 });
@@ -77,10 +76,8 @@ async function getSystemStatus() {
   return status;
 }
 
-<<<<<<< HEAD
 // คำนวณคะแนนจริงในฐานข้อมูลสำหรับ 8 คณะ
 function getScoresOnly() {
-=======
 app.use(cors());
 app.use(express.json());
 
@@ -109,7 +106,7 @@ const upload = multer({
 
 // Helper Functions
 async function getScoresOnly() {
->>>>>>> aa47367210c1a8303c4ed99d1ba5b091074904b5
+ aa47367210c1a8303c4ed99d1ba5b091074904b5
   const scores = {};
   for (let i = 1; i <= 8; i++) scores[i] = 0;
 
@@ -129,7 +126,6 @@ async function getScoresOnly() {
   return scores;
 }
 
-<<<<<<< HEAD
 // สร้างคะแนนว่าง (0 ทั้งหมด)
 function getHiddenScores() {
   const scores = {};
@@ -139,17 +135,15 @@ function getHiddenScores() {
 
 function getSortedSummary() {
   const scoresObj = getScoresOnly();
-=======
 async function getSortedSummary() {
   const scoresObj = await getScoresOnly();
->>>>>>> aa47367210c1a8303c4ed99d1ba5b091074904b5
+ aa47367210c1a8303c4ed99d1ba5b091074904b5
   return Object.keys(scoresObj).map(id => ({
     candidateId: parseInt(id, 10),
     totalVotes: scoresObj[id]
   })).sort((a, b) => b.totalVotes - a.totalVotes);
 }
 
-<<<<<<< HEAD
 function getAdminLogs() {
   if (!db) return [];
   const res = db.exec('SELECT id, fullname, studentId, phone, candidateId, amount, timestamp, slipUrl, status FROM votes ORDER BY id DESC');
@@ -161,7 +155,7 @@ function getAdminLogs() {
     columns.forEach((col, idx) => { obj[col] = row[idx]; });
     return obj;
   });
-=======
+
 async function getAdminLogs() {
   const votes = await Vote.find().sort({ voteId: -1 });
   return votes.map(v => ({
@@ -175,7 +169,7 @@ async function getAdminLogs() {
     slipUrl: v.slipUrl,
     status: v.status
   }));
->>>>>>> aa47367210c1a8303c4ed99d1ba5b091074904b5
+ aa47367210c1a8303c4ed99d1ba5b091074904b5
 }
 
 async function getAdminData() {
@@ -188,7 +182,6 @@ async function getAdminData() {
   };
 }
 
-<<<<<<< HEAD
 function broadcastUpdate() {
   const realScores = getScoresOnly();
   const hiddenScores = getHiddenScores();
@@ -263,7 +256,7 @@ app.get('/api/scores', (req, res) => {
     }
 
     res.json({ success: true, scores: getHiddenScores(), isVotingOpen, isSummaryOpen });
-=======
+
 async function broadcastUpdate() {
   const status = await getSystemStatus();
   const scores = await getScoresOnly();
@@ -283,7 +276,7 @@ app.get('/api/scores', async (req, res) => {
     const status = await getSystemStatus();
     const scores = await getScoresOnly();
     res.json({ success: true, scores, isVotingOpen: status.isVotingOpen, isSummaryOpen: status.isSummaryOpen });
->>>>>>> aa47367210c1a8303c4ed99d1ba5b091074904b5
+ aa47367210c1a8303c4ed99d1ba5b091074904b5
   } catch (err) {
     res.status(500).json({ success: false, message: 'ไม่สามารถดึงข้อมูลได้' });
   }
@@ -291,15 +284,15 @@ app.get('/api/scores', async (req, res) => {
 
 app.get('/api/vote-summary', async (req, res) => {
   try {
-<<<<<<< HEAD
+
     const authHeader = req.headers['authorization'];
     const isAdmin = authHeader === `Bearer ${ADMIN_PASSWORD}` || authHeader === ADMIN_PASSWORD;
 
     if (!isSummaryOpen && !isAdmin) {
-=======
+
     const status = await getSystemStatus();
     if (!status.isSummaryOpen) {
->>>>>>> aa47367210c1a8303c4ed99d1ba5b091074904b5
+ aa47367210c1a8303c4ed99d1ba5b091074904b5
       return res.json({ success: false, isSummaryOpen: false, message: 'ขณะนี้ระบบยังไม่ได้เปิดแสดงผลสรุปการโหวต' });
     }
     res.json({ success: true, isSummaryOpen: true, data: await getSortedSummary() });
@@ -310,7 +303,7 @@ app.get('/api/vote-summary', async (req, res) => {
 
 app.post('/api/vote', upload.single('slip'), async (req, res) => {
   try {
-<<<<<<< HEAD
+
     const { password } = req.body;
     if (password === ADMIN_PASSWORD) {
       return res.json({ success: true, message: 'เข้าสู่ระบบ Admin สำเร็จ', ...getAdminData() });
@@ -353,7 +346,7 @@ app.post('/api/admin/toggle-summary', (req, res) => {
 app.post('/api/vote', (req, res) => {
   if (!isVotingOpen) {
     return res.status(403).json({ success: false, message: 'ขณะนี้ระบบปิดรับการโหวตชั่วคราว' });
-=======
+
     const status = await getSystemStatus();
     if (!status.isVotingOpen) {
       if (req.file) fs.unlinkSync(req.file.path);
@@ -395,7 +388,7 @@ app.post('/api/vote', (req, res) => {
   } catch (error) {
     if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
     res.status(500).json({ success: false, message: `เกิดข้อผิดพลาด: ${error.message}` });
->>>>>>> aa47367210c1a8303c4ed99d1ba5b091074904b5
+ aa47367210c1a8303c4ed99d1ba5b091074904b5
   }
 
   upload.single('slip')(req, res, (err) => {
@@ -500,7 +493,6 @@ app.post('/api/admin/verify-vote', async (req, res) => {
   }
 });
 
-<<<<<<< HEAD
 // ----------------------------------------------------
 // 5. Socket.io
 // ----------------------------------------------------
@@ -520,7 +512,7 @@ io.on('connection', (socket) => {
     socket.emit('statusUpdate', { isVotingOpen, isSummaryOpen });
     socket.emit('voteUpdate', { scores: publicScores, isVotingOpen, isSummaryOpen });
     socket.emit('summaryUpdate', { isSummaryOpen, sortedSummary: publicSummary });
-=======
+
 // Endpoint สำหรับใส่คะแนนตั้งต้นของเมื่อวานคืนระบบ (เรียกใช้ครั้งเดียวผ่าน URL)
 app.get('/api/admin/restore-initial-votes', async (req, res) => {
   try {
@@ -562,13 +554,12 @@ io.on('connection', async (socket) => {
     socket.emit('voteUpdate', { scores, isVotingOpen: status.isVotingOpen, isSummaryOpen: status.isSummaryOpen });
     socket.emit('statusUpdate', { isVotingOpen: status.isVotingOpen, isSummaryOpen: status.isSummaryOpen });
     socket.emit('summaryUpdate', { isSummaryOpen: status.isSummaryOpen, sortedSummary });
->>>>>>> aa47367210c1a8303c4ed99d1ba5b091074904b5
+ aa47367210c1a8303c4ed99d1ba5b091074904b5
   } catch (err) {
     console.error('Socket Connection Error:', err);
   }
 });
 
-<<<<<<< HEAD
 // ----------------------------------------------------
 // 6. Start Server
 // ----------------------------------------------------
@@ -603,8 +594,7 @@ initSqlJs().then(SQL => {
   });
 }).catch(err => {
   console.error('❌ Failed to initialize SQL.js:', err);
-=======
 server.listen(PORT, () => {
   console.log(`🚀 Server ทำงานอยู่ที่ http://localhost:${PORT}`);
->>>>>>> aa47367210c1a8303c4ed99d1ba5b091074904b5
+ aa47367210c1a8303c4ed99d1ba5b091074904b5
 });
