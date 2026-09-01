@@ -713,9 +713,9 @@
                 <h2 style="margin-top: 0; color: #ffffff; margin-bottom: 20px;">🔐 เข้าสู่ระบบ Admin</h2>
                 <div class="input-group">
                     <label>รหัสผ่าน Admin:</label>
-                    <input type="password" id="adminPassword" placeholder="กรอกรหัสผ่าน">
+                    <input type="password" id="adminPassword" placeholder="กรอกรหัสผ่าน Admin">
                 </div>
-                <button class="btn" onclick="loginAdmin()">เข้าสู่ระบบ</button>
+                <button onclick="loginAdmin()">เข้าสู่ระบบ</button>
             </div>
 
             <div id="adminDataSection" class="box" style="display: none; max-width: 100%; padding: 30px; text-align: left;">
@@ -1089,40 +1089,38 @@
         renderCandidateCards();
 
         function switchTab(tabName) {
-    // เช็กสิทธิ์ Admin สำหรับแท็บ Summary
-    if (tabName === 'summary') {
-        if (!isAdminLoggedIn) {
-            document.getElementById('summaryLockSection').style.display = 'block';
-            document.getElementById('summaryContentSection').style.display = 'none';
-        } else {
-            document.getElementById('summaryLockSection').style.display = 'none';
-            document.getElementById('summaryContentSection').style.display = 'block';
-            renderSummary();
-        }
-    }
-
-    // เช็กสิทธิ์ Admin สำหรับแท็บ Chart
-    if (tabName === 'chart') {
-        if (!isAdminLoggedIn) {
-            document.getElementById('chartLockSection').style.display = 'block';
-            document.getElementById('chartContentSection').style.display = 'none';
-        } else {
-            document.getElementById('chartLockSection').style.display = 'none';
-            document.getElementById('chartContentSection').style.display = 'block';
-            if (!chartB || !chartG) {
-                initChart();
-            } else {
-                chartB.update();
-                chartG.update();
+            if (tabName === 'summary') {
+                if (!isAdminLoggedIn) {
+                    document.getElementById('summaryLockSection').style.display = 'block';
+                    document.getElementById('summaryContentSection').style.display = 'none';
+                } else {
+                    document.getElementById('summaryLockSection').style.display = 'none';
+                    document.getElementById('summaryContentSection').style.display = 'block';
+                    renderSummary();
+                }
             }
-        }
-    }
 
-    document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
-    document.querySelectorAll('.nav-btns button').forEach(el => el.classList.remove('active'));
-    document.getElementById('tab-' + tabName).classList.add('active');
-    document.getElementById('nav-' + tabName).classList.add('active');
-}
+            if (tabName === 'chart') {
+                if (!isAdminLoggedIn) {
+                    document.getElementById('chartLockSection').style.display = 'block';
+                    document.getElementById('chartContentSection').style.display = 'none';
+                } else {
+                    document.getElementById('chartLockSection').style.display = 'none';
+                    document.getElementById('chartContentSection').style.display = 'block';
+                    if (!chartB || !chartG) {
+                        initChart();
+                    } else {
+                        chartB.update();
+                        chartG.update();
+                    }
+                }
+            }
+
+            document.querySelectorAll('.section').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-btns button').forEach(el => el.classList.remove('active'));
+            document.getElementById('tab-' + tabName).classList.add('active');
+            document.getElementById('nav-' + tabName).classList.add('active');
+        }
 
         function renderSummary() {
             const summaryGrid = document.getElementById('summaryGrid');
@@ -1274,6 +1272,7 @@
             const scoresMap = data.scores || data;
             latestScores = scoresMap;
 
+            // ปรับแก้การดึงคะแนนเข้ากราฟให้ตรงตาม ID ผู้สมัคร
             if (chartB) {
                 chartB.data.datasets[0].data = candidates.filter(c => c.code.startsWith('B')).map(c => scoresMap[c.id] || 0);
                 chartB.update();
@@ -1418,58 +1417,54 @@
         }
 
         async function loginAdmin() {
-    const password = document.getElementById('adminPassword').value;
-    if (!password) return alert('กรุณากรอกรหัสผ่าน');
+            const password = document.getElementById('adminPassword').value;
+            if (!password) return alert('กรุณากรอกรหัสผ่าน');
 
-    try {
-        const res = await fetch('/api/admin/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ password })
-        });
-        const data = await res.json();
+            try {
+                const res = await fetch('/api/admin/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password })
+                });
+                const data = await res.json();
 
-        if (data.success) {
-            isAdminLoggedIn = true;
-            document.getElementById('adminPassSection').style.display = 'none';
-            document.getElementById('adminDataSection').style.display = 'block';
-            
-            // ปลดล็อกหน้า Summary
-            document.getElementById('summaryLockSection').style.display = 'none';
-            document.getElementById('summaryContentSection').style.display = 'block';
-            renderSummary();
+                if (data.success) {
+                    isAdminLoggedIn = true;
+                    document.getElementById('adminPassSection').style.display = 'none';
+                    document.getElementById('adminDataSection').style.display = 'block';
+                    
+                    document.getElementById('summaryLockSection').style.display = 'none';
+                    document.getElementById('summaryContentSection').style.display = 'block';
+                    renderSummary();
 
-            // ปลดล็อกหน้า Chart
-            document.getElementById('chartLockSection').style.display = 'none';
-            document.getElementById('chartContentSection').style.display = 'block';
-            if (!chartB || !chartG) {
-                initChart();
+                    document.getElementById('chartLockSection').style.display = 'none';
+                    document.getElementById('chartContentSection').style.display = 'block';
+                    if (!chartB || !chartG) {
+                        initChart();
+                    }
+
+                    applyVotingStatusUI();
+                    if (data.logs) renderLogs(data.logs);
+                } else {
+                    alert(data.message || 'รหัสผ่าน Admin ไม่ถูกต้อง!');
+                }
+            } catch (err) {
+                alert('เกิดข้อผิดพลาดในการเชื่อมต่อกับระบบ Admin');
             }
-
-            applyVotingStatusUI();
-            if (data.logs) renderLogs(data.logs);
-        } else {
-            alert(data.message || 'รหัสผ่าน Admin ไม่ถูกต้อง!');
         }
-    } catch (err) {
-        alert('เกิดข้อผิดพลาดในการเชื่อมต่อกับระบบ Admin');
-    }
-}
 
-function logoutAdmin() {
-    isAdminLoggedIn = false;
-    document.getElementById('adminPassword').value = '';
-    document.getElementById('adminPassSection').style.display = 'block';
-    document.getElementById('adminDataSection').style.display = 'none';
+        function logoutAdmin() {
+            isAdminLoggedIn = false;
+            document.getElementById('adminPassword').value = '';
+            document.getElementById('adminPassSection').style.display = 'block';
+            document.getElementById('adminDataSection').style.display = 'none';
 
-    // ล็อกหน้า Summary
-    document.getElementById('summaryLockSection').style.display = 'block';
-    document.getElementById('summaryContentSection').style.display = 'none';
+            document.getElementById('summaryLockSection').style.display = 'block';
+            document.getElementById('summaryContentSection').style.display = 'none';
 
-    // ล็อกหน้า Chart
-    document.getElementById('chartLockSection').style.display = 'block';
-    document.getElementById('chartContentSection').style.display = 'none';
-}
+            document.getElementById('chartLockSection').style.display = 'block';
+            document.getElementById('chartContentSection').style.display = 'none';
+        }
 
         async function toggleVotingSystem() {
             try {

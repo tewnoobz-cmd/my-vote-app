@@ -17,7 +17,7 @@ const PORT = process.env.PORT || 3000;
 // กำหนดรหัสผ่าน Admin โดยตรงในโค้ด
 const ADMIN_PASSWORD = "0000";
 
-// 1. เชื่อมต่อ MongoDB Atlas (ใส่ Connection String ของ Cluster0 ตรงๆ)
+// 1. เชื่อมต่อ MongoDB Atlas
 const MONGO_URI = "mongodb+srv://tewnoobz_db_user:tewnoobz_db_user@cluster0.ntcvr9i.mongodb.net/kpruVoteDB?retryWrites=true&w=majority&appName=Cluster0";
 
 mongoose.connect(MONGO_URI)
@@ -62,9 +62,10 @@ async function getSystemStatus() {
   return status;
 }
 
+// ขยายลูปให้ครอบคลุมผู้สมัครทั้งหมด 36 คน (ID 1 - 36)
 async function getScoresOnly() {
   const scores = {};
-  for (let i = 1; i <= 8; i++) scores[i] = 0;
+  for (let i = 1; i <= 36; i++) scores[i] = 0;
 
   const res = await Vote.aggregate([
     { $match: { status: 'approved' } },
@@ -201,11 +202,13 @@ app.post('/api/vote', upload.single('slip'), async (req, res) => {
     const cId = parseInt(candidateId, 10);
     const inputAmount = parseInt(amount, 10);
 
-    if (isNaN(cId) || isNaN(inputAmount) || cId < 1 || cId > 8) {
+    // ปรับเงื่อนไขตรวจสอบรองรับ candidateId ถึง 36 คน
+    if (isNaN(cId) || isNaN(inputAmount) || cId < 1 || cId > 36) {
       if (req.file) fs.unlinkSync(req.file.path);
       return res.status(400).json({ success: false, message: 'ข้อมูลผู้สมัครหรือจำนวนเงินไม่ถูกต้อง' });
     }
 
+    // คำนวณอัตราส่วนโบนัสคะแนน
     let finalScore = inputAmount;
     if (inputAmount === 50) finalScore = 65;
     else if (inputAmount === 100) finalScore = 150;
