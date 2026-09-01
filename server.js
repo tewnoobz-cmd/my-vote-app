@@ -13,10 +13,12 @@ const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
 
 const PORT = process.env.PORT || 3000;
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "0000";
 
-// 1. เชื่อมต่อ MongoDB Atlas
-const MONGO_URI = process.env.MONGO_URI || "mongodb+srv://<USER>:<PASSWORD>@cluster0.xxxx.mongodb.net/kpruVoteDB?retryWrites=true&w=majority";
+// กำหนดรหัสผ่าน Admin โดยตรงในโค้ด
+const ADMIN_PASSWORD = "0000";
+
+// 1. เชื่อมต่อ MongoDB Atlas (ใส่ Connection String ของ Cluster0 ตรงๆ)
+const MONGO_URI = "mongodb+srv://tewnoobz_db_user:tewnoobz_db_user@cluster0.ntcvr9i.mongodb.net/kpruVoteDB?retryWrites=true&w=majority&appName=Cluster0";
 
 mongoose.connect(MONGO_URI)
   .then(() => console.log('✅ MongoDB Atlas Connected Successfully!'))
